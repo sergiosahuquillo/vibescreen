@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>net10.0;net10.0-windows</TargetFrameworks>
+    <TargetFramework></TargetFramework>
+    <AssemblyName>vibescreen-service</AssemblyName>
+    <RootNamespace>VibeScreen.Service</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\VibeScreen.Contracts\VibeScreen.Contracts.csproj" />
+    <ProjectReference Include="..\VibeScreen.Core\VibeScreen.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <!-- Integración con el gestor de servicios de cada sistema. Cada una solo en su objetivo: son
+         Windows y Linux puros, y con los avisos como errores no se pueden llamar a ciegas. -->
+    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Condition="'$(TargetFramework)' == 'net10.0-windows'" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Systemd" Condition="'$(TargetFramework)' == 'net10.0'" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- El verificador sustituye la espera entre reintentos para no dormir de verdad. Eso es un punto
+         de prueba y no API del servicio, así que se ve desde ahí y no desde fuera. -->
+    <InternalsVisibleTo Include="VibeScreen.ServiceCheck" />
+  </ItemGroup>
+
+</Project>

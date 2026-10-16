@@ -1,0 +1,100 @@
+# Estilo y analizadores de VibeScreen.
+#
+# Existe porque Directory.Build.props pone EnforceCodeStyleInBuild=true, y ese interruptor sin un
+# .editorconfig no hace prácticamente nada: las reglas de estilo se quedan en su severidad de
+# fábrica, que es «sugerencia», y nunca llegan a la compilación.
+
+root = true
+
+[*]
+charset = utf-8
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.{json,yml,yaml}]
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+
+# Con BOM: Windows PowerShell 5.1, sin él, lee el script como ANSI y destroza los acentos.
+[*.ps1]
+charset = utf-8-bom
+
+[*.cs]
+max_line_length = 120
+
+# Lo que el código ya hace en todas partes, ahora exigido.
+csharp_style_namespace_declarations = file_scoped:error
+dotnet_sort_system_directives_first = true
+dotnet_separate_import_directive_groups = false
+csharp_using_directive_placement = outside_namespace:error
+csharp_prefer_braces = when_multiline:silent
+
+# --- Analizadores ---
+# El proyecto compila con TreatWarningsAsErrors, así que lo que se enciende aquí hay que cumplirlo.
+
+# CA1848: usar los delegados de LoggerMessage en lugar de LogInformation y compañía.
+# El servicio escribe un puñado de líneas por minuto —conectar, perder el panel, una orden que
+# falla—, no está en ningún camino caliente, y la ceremonia del generador de código taparía el
+# mensaje, que es lo que de verdad se lee cuando algo va mal.
+dotnet_diagnostic.CA1848.severity = none
+
+# CA1873: no evaluar argumentos caros si el nivel está apagado.
+# Los cuatro sitios que lo disparan pasan «e.Message» o el nombre de un tipo, y todos van en
+# advertencia o error, niveles que están siempre encendidos.
+dotnet_diagnostic.CA1873.severity = none
+
+# --- Reglas de calidad encendidas a mano ---
+# Las reglas CA de calidad vienen apagadas de fábrica: EnforceCodeStyleInBuild solo mueve las de
+# estilo, y subir AnalysisMode entero pondría doscientos avisos de golpe, que con los avisos como
+# errores acaba en que alguien lo apaga todo. Así que se encienden las que pagan la pena.
+
+# Ojo al orden: una regla CA viene apagada de fábrica, y una sección con ruta —[tools/**/*.cs]— puede
+# BAJAR la severidad de una regla ya encendida, pero no encender una apagada. Así que se encienden
+# aquí, para toda la solución, y se rebajan más abajo donde no interesan.
+
+# CA2000 y CA1001: soltar lo descartable, y ser descartable si guardas algo que lo es.
+# Son las que cazan las fugas de verdad: encontraron dos SKRoundRect nativos en el repintado de la
+# barra, los dos mapas de bits de PanelCanvas, el icono de la bandeja y el del propio programa.
+dotnet_diagnostic.CA2000.severity = error
+dotnet_diagnostic.CA1001.severity = error
+
+# CA1062: validar los parámetros públicos antes de usarlos.
+# Es lo que el código ya hace en todas las fronteras; aquí solo se exige que siga haciéndolo.
+dotnet_diagnostic.CA1062.severity = warning
+
+# Limpieza sin prisa: se ven en el editor y no rompen la compilación.
+dotnet_diagnostic.CA1826.severity = suggestion
+dotnet_diagnostic.CA1859.severity = suggestion
+
+# CA5394: Random no es criptográficamente seguro.
+# Elegir qué tema sale hoy no es un contexto de seguridad, y es el único sitio donde se usa.
+dotnet_diagnostic.CA5394.severity = none
+
+# CA1031 y CA1032: capturar Exception a secas, y los constructores de rigor en una excepción.
+# Los bucles del servicio capturan Exception a propósito y está razonado donde toca: el backend de
+# sensores baja a ring0 y puede tirar cualquier cosa, y lo que no puede es tirar el servicio. Y
+# LayoutException lleva solo el constructor que tiene sentido, porque nace de una lista de problemas.
+dotnet_diagnostic.CA1031.severity = none
+dotnet_diagnostic.CA1032.severity = none
+
+# --- La interfaz ---
+
+[src/VibeScreen.App/**/*.cs]
+# CA1062 la disparan aquí sobre todo las redefiniciones de Avalonia —OnPointerPressed, Render,
+# OnPropertyChanged—, a las que el marco nunca les pasa un nulo: la guarda sería ceremonia. En las
+# bibliotecas se queda en aviso, que es donde son API que llama otro código.
+dotnet_diagnostic.CA1062.severity = suggestion
+
+# --- Los verificadores ---
+
+[tools/**/*.cs]
+# Montan transportes, sensores y paneles de mentira a decenas, que no llevan nada nativo dentro.
+# Exigirles «using» sería ruido justo donde menos ayuda: lo que tiene que aguantar horas en marcha
+# es el producto, y ahí las dos siguen en error.
+dotnet_diagnostic.CA2000.severity = none
+dotnet_diagnostic.CA1001.severity = none
+dotnet_diagnostic.CA1062.severity = suggestion

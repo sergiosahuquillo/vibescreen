@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Los DTOs del IPC y el cliente. Sin dependencias y sin objetivo de Windows a propósito: lo
+       comparten el servicio, la GUI y la CLI, y en Linux .NET implementa las tuberías con nombre
+       sobre sockets de dominio Unix, así que el transporte es el mismo en los dos sistemas. -->
+
+  <ItemGroup>
+    <!-- Los textos de los avisos, uno por idioma, dentro del ensamblado: los necesitan la ventana, la
+         CLI y el servicio, y ninguno puede depender de que un fichero esté al lado. -->
+    <EmbeddedResource Include="Notices\*.json" LogicalName="VibeScreen.Notices.%(Filename).json" />
+  </ItemGroup>
+
+</Project>

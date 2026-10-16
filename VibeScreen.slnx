@@ -1,0 +1,18 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/VibeScreen.App/VibeScreen.App.csproj" />
+    <Project Path="src/VibeScreen.Contracts/VibeScreen.Contracts.csproj" />
+    <Project Path="src/VibeScreen.Core/VibeScreen.Core.csproj" />
+    <Project Path="src/VibeScreen.Protocol/VibeScreen.Protocol.csproj" />
+    <Project Path="src/VibeScreen.Service/VibeScreen.Service.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/VibeScreen.Cli/VibeScreen.Cli.csproj" />
+    <Project Path="tools/VibeScreen.CoreCheck/VibeScreen.CoreCheck.csproj" />
+    <Project Path="tools/VibeScreen.IconExport/VibeScreen.IconExport.csproj" />
+    <Project Path="tools/VibeScreen.LocalizationCheck/VibeScreen.LocalizationCheck.csproj" />
+    <Project Path="tools/VibeScreen.ProtocolCheck/VibeScreen.ProtocolCheck.csproj" />
+    <Project Path="tools/VibeScreen.ServiceCheck/VibeScreen.ServiceCheck.csproj" />
+    <Project Path="tools/VibeScreen.ThemeCheck/VibeScreen.ThemeCheck.csproj" />
+  </Folder>
+</Solution>

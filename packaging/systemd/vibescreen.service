@@ -1,0 +1,15 @@
+[Unit]
+Description=VibeScreen: sensores del equipo en un panel USB
+# Unidad de usuario, no de sistema: en Linux los sensores se leen de ficheros que no piden
+# privilegios, y así el socket del IPC se queda dentro de la sesión del usuario.
+After=graphical-session.target
+
+[Service]
+# El servicio avisa de que está listo con sd_notify, vía AddSystemd().
+Type=notify
+ExecStart=%h/.local/bin/vibescreen-service
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

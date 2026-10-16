@@ -1,0 +1,45 @@
+{
+  "schema": 2,
+  "meta": { "name": "VibeScreen", "author": "VibeScreen" },
+  "display": { "width": 480, "height": 320, "orientation": "landscape" },
+  "background": { "type": "color", "color": "#0A0C10" },
+  "widgets": [
+    { "type": "text", "id": "cpu-title", "rect": [20, 18, 100, 18], "text": "CPU", "refreshMs": 60000,
+      "font": "Bahnschrift", "size": 15, "bold": true, "color": "#FF6F61" },
+    { "type": "text", "id": "cpu-temperature", "rect": [20, 38, 210, 62], "sensor": "cpu/0/temperature/package",
+      "font": "Bahnschrift", "size": 56, "bold": true, "color": "#E6E9EF",
+      "levels": { "low": "#E6E9EF", "medium": "#E8A33D", "high": "#FF6F61", "mediumFrom": 75, "highFrom": 88 } },
+    { "type": "bar", "id": "cpu-load-bar", "rect": [20, 108, 210, 8], "sensor": "cpu/0/load/total",
+      "min": 0, "max": 100, "radius": 4, "color": "#FF6F61", "background": "#191D25" },
+    { "type": "text", "id": "cpu-load", "rect": [20, 122, 100, 24], "sensor": "cpu/0/load/total",
+      "font": "Bahnschrift", "size": 19, "color": "#9AA3B2" },
+    { "type": "text", "id": "cpu-power", "rect": [130, 122, 100, 24], "sensor": "cpu/0/power/package", "refreshMs": 2000,
+      "font": "Bahnschrift", "size": 19, "color": "#9AA3B2", "align": "right" },
+
+    { "type": "text", "id": "gpu-title", "rect": [250, 18, 100, 18], "text": "GPU", "refreshMs": 60000,
+      "font": "Bahnschrift", "size": 15, "bold": true, "color": "#6BA6FF" },
+    { "type": "text", "id": "gpu-temperature", "rect": [250, 38, 210, 62], "sensor": "gpu/0/temperature/core",
+      "font": "Bahnschrift", "size": 56, "bold": true, "color": "#E6E9EF",
+      "levels": { "low": "#E6E9EF", "medium": "#E8A33D", "high": "#FF6F61", "mediumFrom": 75, "highFrom": 85 } },
+    { "type": "bar", "id": "gpu-load-bar", "rect": [250, 108, 210, 8], "sensor": "gpu/0/load/core",
+      "min": 0, "max": 100, "radius": 4, "color": "#6BA6FF", "background": "#191D25" },
+    { "type": "text", "id": "gpu-load", "rect": [250, 122, 100, 24], "sensor": "gpu/0/load/core",
+      "font": "Bahnschrift", "size": 19, "color": "#9AA3B2" },
+    { "type": "text", "id": "gpu-power", "rect": [360, 122, 100, 24], "sensor": "gpu/0/power/package", "refreshMs": 2000,
+      "font": "Bahnschrift", "size": 19, "color": "#9AA3B2", "align": "right" },
+
+    { "type": "text", "id": "ram-title", "rect": [20, 170, 100, 18], "text": "RAM", "refreshMs": 60000,
+      "font": "Bahnschrift", "size": 15, "bold": true, "color": "#9AA3B2" },
+    { "type": "text", "id": "ram-used", "rect": [260, 168, 200, 20], "sensor": "memory/0/data/used", "decimals": 1, "refreshMs": 2000,
+      "font": "Bahnschrift", "size": 17, "color": "#E6E9EF", "align": "right" },
+    { "type": "bar", "id": "ram-bar", "rect": [20, 194, 440, 8], "sensor": "memory/0/load/used", "refreshMs": 2000,
+      "min": 0, "max": 100, "radius": 4, "color": "#E6E9EF", "background": "#191D25" },
+
+    { "type": "clock", "id": "time", "rect": [20, 244, 200, 56], "format": "HH:mm",
+      "font": "Bahnschrift", "size": 52, "bold": true, "color": "#E6E9EF" },
+    { "type": "clock", "id": "weekday", "rect": [240, 250, 220, 22], "format": "dddd", "refreshMs": 60000,
+      "font": "Bahnschrift", "size": 18, "color": "#9AA3B2", "align": "right" },
+    { "type": "clock", "id": "date", "rect": [240, 274, 220, 22], "format": "d MMMM yyyy", "refreshMs": 60000,
+      "font": "Bahnschrift", "size": 18, "color": "#9AA3B2", "align": "right" }
+  ]
+}

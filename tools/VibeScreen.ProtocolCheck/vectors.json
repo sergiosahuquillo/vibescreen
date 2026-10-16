@@ -1,0 +1,942 @@
+{
+ "commands": [
+  {
+   "command": "Reset",
+   "x": 0,
+   "y": 0,
+   "endX": 0,
+   "endY": 0,
+   "expected": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    101
+   ]
+  },
+  {
+   "command": "Reset",
+   "x": 0,
+   "y": 0,
+   "endX": 319,
+   "endY": 479,
+   "expected": [
+    0,
+    0,
+    4,
+    253,
+    223,
+    101
+   ]
+  },
+  {
+   "command": "Reset",
+   "x": 100,
+   "y": 24,
+   "endX": 199,
+   "endY": 47,
+   "expected": [
+    25,
+    1,
+    131,
+    28,
+    47,
+    101
+   ]
+  },
+  {
+   "command": "Reset",
+   "x": 1023,
+   "y": 1023,
+   "endX": 1023,
+   "endY": 1023,
+   "expected": [
+    255,
+    255,
+    255,
+    255,
+    255,
+    101
+   ]
+  },
+  {
+   "command": "Reset",
+   "x": 5,
+   "y": 17,
+   "endX": 300,
+   "endY": 400,
+   "expected": [
+    1,
+    65,
+    20,
+    177,
+    144,
+    101
+   ]
+  },
+  {
+   "command": "Reset",
+   "x": 63,
+   "y": 15,
+   "endX": 64,
+   "endY": 16,
+   "expected": [
+    15,
+    192,
+    241,
+    0,
+    16,
+    101
+   ]
+  },
+  {
+   "command": "Clear",
+   "x": 0,
+   "y": 0,
+   "endX": 0,
+   "endY": 0,
+   "expected": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    102
+   ]
+  },
+  {
+   "command": "Clear",
+   "x": 0,
+   "y": 0,
+   "endX": 319,
+   "endY": 479,
+   "expected": [
+    0,
+    0,
+    4,
+    253,
+    223,
+    102
+   ]
+  },
+  {
+   "command": "Clear",
+   "x": 100,
+   "y": 24,
+   "endX": 199,
+   "endY": 47,
+   "expected": [
+    25,
+    1,
+    131,
+    28,
+    47,
+    102
+   ]
+  },
+  {
+   "command": "Clear",
+   "x": 1023,
+   "y": 1023,
+   "endX": 1023,
+   "endY": 1023,
+   "expected": [
+    255,
+    255,
+    255,
+    255,
+    255,
+    102
+   ]
+  },
+  {
+   "command": "Clear",
+   "x": 5,
+   "y": 17,
+   "endX": 300,
+   "endY": 400,
+   "expected": [
+    1,
+    65,
+    20,
+    177,
+    144,
+    102
+   ]
+  },
+  {
+   "command": "Clear",
+   "x": 63,
+   "y": 15,
+   "endX": 64,
+   "endY": 16,
+   "expected": [
+    15,
+    192,
+    241,
+    0,
+    16,
+    102
+   ]
+  },
+  {
+   "command": "ScreenOff",
+   "x": 0,
+   "y": 0,
+   "endX": 0,
+   "endY": 0,
+   "expected": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    108
+   ]
+  },
+  {
+   "command": "ScreenOff",
+   "x": 0,
+   "y": 0,
+   "endX": 319,
+   "endY": 479,
+   "expected": [
+    0,
+    0,
+    4,
+    253,
+    223,
+    108
+   ]
+  },
+  {
+   "command": "ScreenOff",
+   "x": 100,
+   "y": 24,
+   "endX": 199,
+   "endY": 47,
+   "expected": [
+    25,
+    1,
+    131,
+    28,
+    47,
+    108
+   ]
+  },
+  {
+   "command": "ScreenOff",
+   "x": 1023,
+   "y": 1023,
+   "endX": 1023,
+   "endY": 1023,
+   "expected": [
+    255,
+    255,
+    255,
+    255,
+    255,
+    108
+   ]
+  },
+  {
+   "command": "ScreenOff",
+   "x": 5,
+   "y": 17,
+   "endX": 300,
+   "endY": 400,
+   "expected": [
+    1,
+    65,
+    20,
+    177,
+    144,
+    108
+   ]
+  },
+  {
+   "command": "ScreenOff",
+   "x": 63,
+   "y": 15,
+   "endX": 64,
+   "endY": 16,
+   "expected": [
+    15,
+    192,
+    241,
+    0,
+    16,
+    108
+   ]
+  },
+  {
+   "command": "ScreenOn",
+   "x": 0,
+   "y": 0,
+   "endX": 0,
+   "endY": 0,
+   "expected": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    109
+   ]
+  },
+  {
+   "command": "ScreenOn",
+   "x": 0,
+   "y": 0,
+   "endX": 319,
+   "endY": 479,
+   "expected": [
+    0,
+    0,
+    4,
+    253,
+    223,
+    109
+   ]
+  },
+  {
+   "command": "ScreenOn",
+   "x": 100,
+   "y": 24,
+   "endX": 199,
+   "endY": 47,
+   "expected": [
+    25,
+    1,
+    131,
+    28,
+    47,
+    109
+   ]
+  },
+  {
+   "command": "ScreenOn",
+   "x": 1023,
+   "y": 1023,
+   "endX": 1023,
+   "endY": 1023,
+   "expected": [
+    255,
+    255,
+    255,
+    255,
+    255,
+    109
+   ]
+  },
+  {
+   "command": "ScreenOn",
+   "x": 5,
+   "y": 17,
+   "endX": 300,
+   "endY": 400,
+   "expected": [
+    1,
+    65,
+    20,
+    177,
+    144,
+    109
+   ]
+  },
+  {
+   "command": "ScreenOn",
+   "x": 63,
+   "y": 15,
+   "endX": 64,
+   "endY": 16,
+   "expected": [
+    15,
+    192,
+    241,
+    0,
+    16,
+    109
+   ]
+  },
+  {
+   "command": "SetBrightness",
+   "x": 0,
+   "y": 0,
+   "endX": 0,
+   "endY": 0,
+   "expected": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    110
+   ]
+  },
+  {
+   "command": "SetBrightness",
+   "x": 0,
+   "y": 0,
+   "endX": 319,
+   "endY": 479,
+   "expected": [
+    0,
+    0,
+    4,
+    253,
+    223,
+    110
+   ]
+  },
+  {
+   "command": "SetBrightness",
+   "x": 100,
+   "y": 24,
+   "endX": 199,
+   "endY": 47,
+   "expected": [
+    25,
+    1,
+    131,
+    28,
+    47,
+    110
+   ]
+  },
+  {
+   "command": "SetBrightness",
+   "x": 1023,
+   "y": 1023,
+   "endX": 1023,
+   "endY": 1023,
+   "expected": [
+    255,
+    255,
+    255,
+    255,
+    255,
+    110
+   ]
+  },
+  {
+   "command": "SetBrightness",
+   "x": 5,
+   "y": 17,
+   "endX": 300,
+   "endY": 400,
+   "expected": [
+    1,
+    65,
+    20,
+    177,
+    144,
+    110
+   ]
+  },
+  {
+   "command": "SetBrightness",
+   "x": 63,
+   "y": 15,
+   "endX": 64,
+   "endY": 16,
+   "expected": [
+    15,
+    192,
+    241,
+    0,
+    16,
+    110
+   ]
+  },
+  {
+   "command": "DisplayBitmap",
+   "x": 0,
+   "y": 0,
+   "endX": 0,
+   "endY": 0,
+   "expected": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    197
+   ]
+  },
+  {
+   "command": "DisplayBitmap",
+   "x": 0,
+   "y": 0,
+   "endX": 319,
+   "endY": 479,
+   "expected": [
+    0,
+    0,
+    4,
+    253,
+    223,
+    197
+   ]
+  },
+  {
+   "command": "DisplayBitmap",
+   "x": 100,
+   "y": 24,
+   "endX": 199,
+   "endY": 47,
+   "expected": [
+    25,
+    1,
+    131,
+    28,
+    47,
+    197
+   ]
+  },
+  {
+   "command": "DisplayBitmap",
+   "x": 1023,
+   "y": 1023,
+   "endX": 1023,
+   "endY": 1023,
+   "expected": [
+    255,
+    255,
+    255,
+    255,
+    255,
+    197
+   ]
+  },
+  {
+   "command": "DisplayBitmap",
+   "x": 5,
+   "y": 17,
+   "endX": 300,
+   "endY": 400,
+   "expected": [
+    1,
+    65,
+    20,
+    177,
+    144,
+    197
+   ]
+  },
+  {
+   "command": "DisplayBitmap",
+   "x": 63,
+   "y": 15,
+   "endX": 64,
+   "endY": 16,
+   "expected": [
+    15,
+    192,
+    241,
+    0,
+    16,
+    197
+   ]
+  },
+  {
+   "command": "Hello",
+   "x": 0,
+   "y": 0,
+   "endX": 0,
+   "endY": 0,
+   "expected": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    69
+   ]
+  },
+  {
+   "command": "Hello",
+   "x": 0,
+   "y": 0,
+   "endX": 319,
+   "endY": 479,
+   "expected": [
+    0,
+    0,
+    4,
+    253,
+    223,
+    69
+   ]
+  },
+  {
+   "command": "Hello",
+   "x": 100,
+   "y": 24,
+   "endX": 199,
+   "endY": 47,
+   "expected": [
+    25,
+    1,
+    131,
+    28,
+    47,
+    69
+   ]
+  },
+  {
+   "command": "Hello",
+   "x": 1023,
+   "y": 1023,
+   "endX": 1023,
+   "endY": 1023,
+   "expected": [
+    255,
+    255,
+    255,
+    255,
+    255,
+    69
+   ]
+  },
+  {
+   "command": "Hello",
+   "x": 5,
+   "y": 17,
+   "endX": 300,
+   "endY": 400,
+   "expected": [
+    1,
+    65,
+    20,
+    177,
+    144,
+    69
+   ]
+  },
+  {
+   "command": "Hello",
+   "x": 63,
+   "y": 15,
+   "endX": 64,
+   "endY": 16,
+   "expected": [
+    15,
+    192,
+    241,
+    0,
+    16,
+    69
+   ]
+  }
+ ],
+ "brightness": [
+  {
+   "percent": 0,
+   "expected": [
+    63,
+    192,
+    0,
+    0,
+    0,
+    110
+   ]
+  },
+  {
+   "percent": 1,
+   "expected": [
+    63,
+    64,
+    0,
+    0,
+    0,
+    110
+   ]
+  },
+  {
+   "percent": 20,
+   "expected": [
+    51,
+    0,
+    0,
+    0,
+    0,
+    110
+   ]
+  },
+  {
+   "percent": 25,
+   "expected": [
+    48,
+    0,
+    0,
+    0,
+    0,
+    110
+   ]
+  },
+  {
+   "percent": 50,
+   "expected": [
+    32,
+    0,
+    0,
+    0,
+    0,
+    110
+   ]
+  },
+  {
+   "percent": 75,
+   "expected": [
+    16,
+    0,
+    0,
+    0,
+    0,
+    110
+   ]
+  },
+  {
+   "percent": 99,
+   "expected": [
+    0,
+    192,
+    0,
+    0,
+    0,
+    110
+   ]
+  },
+  {
+   "percent": 100,
+   "expected": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    110
+   ]
+  }
+ ],
+ "orientation": [
+  {
+   "orientation": 0,
+   "nativeWidth": 320,
+   "nativeHeight": 480,
+   "expected": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    121,
+    100,
+    1,
+    64,
+    1,
+    224,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "orientation": 1,
+   "nativeWidth": 320,
+   "nativeHeight": 480,
+   "expected": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    121,
+    101,
+    1,
+    64,
+    1,
+    224,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "orientation": 2,
+   "nativeWidth": 320,
+   "nativeHeight": 480,
+   "expected": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    121,
+    102,
+    1,
+    224,
+    1,
+    64,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "orientation": 3,
+   "nativeWidth": 320,
+   "nativeHeight": 480,
+   "expected": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    121,
+    103,
+    1,
+    224,
+    1,
+    64,
+    0,
+    0,
+    0,
+    0,
+    0
+   ]
+  }
+ ],
+ "hello": {
+  "expected": [
+   69,
+   69,
+   69,
+   69,
+   69,
+   69
+  ]
+ },
+ "rgb565": [
+  {
+   "pixels": [
+    [
+     0,
+     0,
+     0
+    ]
+   ],
+   "expected": [
+    0,
+    0
+   ]
+  },
+  {
+   "pixels": [
+    [
+     255,
+     255,
+     255
+    ]
+   ],
+   "expected": [
+    255,
+    255
+   ]
+  },
+  {
+   "pixels": [
+    [
+     255,
+     0,
+     0
+    ]
+   ],
+   "expected": [
+    0,
+    248
+   ]
+  },
+  {
+   "pixels": [
+    [
+     0,
+     255,
+     0
+    ]
+   ],
+   "expected": [
+    224,
+    7
+   ]
+  },
+  {
+   "pixels": [
+    [
+     0,
+     0,
+     255
+    ]
+   ],
+   "expected": [
+    31,
+    0
+   ]
+  },
+  {
+   "pixels": [
+    [
+     18,
+     52,
+     86
+    ],
+    [
+     171,
+     205,
+     239
+    ]
+   ],
+   "expected": [
+    170,
+    17,
+    125,
+    174
+   ]
+  },
+  {
+   "pixels": [
+    [
+     1,
+     2,
+     3
+    ],
+    [
+     127,
+     128,
+     129
+    ],
+    [
+     254,
+     253,
+     252
+    ]
+   ],
+   "expected": [
+    0,
+    0,
+    16,
+    124,
+    255,
+    255
+   ]
+  }
+ ]
+}

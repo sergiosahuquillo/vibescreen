@@ -1,0 +1,77 @@
+VibeScreen - third-party notices
+================================
+
+VibeScreen is free software released under the GNU General Public License,
+version 3 (see LICENSE.txt in the installation folder). Its source code is at
+https://github.com/sergiosahuquillo/vibescreen
+
+It is built on, and ships with, the following third-party software. Each
+component is distributed under its own license, which is reproduced or linked
+below. The source code of every component is available at the address shown.
+
+
+Display protocol
+----------------
+
+turing-smart-screen-python - GPL-3.0
+https://github.com/mathoudebine/turing-smart-screen-python
+The serial protocol of the displays comes from the reverse engineering work of
+this project, and its logic is used to generate the test vectors of the
+protocol encoder.
+
+
+Hardware sensors (service)
+--------------------------
+
+LibreHardwareMonitor (LibreHardwareMonitorLib) - MPL-2.0
+https://github.com/LibreHardwareMonitor/LibreHardwareMonitor
+
+BlackSharp, DiskInfoToolkit, RAMSPDToolkit - MPL-2.0
+https://github.com/Blacktempel/BlackSharp
+https://github.com/Blacktempel/DiskInfoToolkit
+https://github.com/Blacktempel/RAMSPDToolkit
+
+HidSharp - Apache-2.0
+https://www.zer7.com/software/hidsharp
+
+PawnIO - GPL-2.0
+https://pawnio.eu/ - https://github.com/namazso/PawnIO
+The kernel driver that gives LibreHardwareMonitor access to the hardware. The
+VibeScreen installer runs the official PawnIO installer, unmodified, as its
+author allows. PawnIO is installed as a separate program and is not removed
+when VibeScreen is uninstalled.
+
+The MPL-2.0 text is at https://www.mozilla.org/MPL/2.0/
+The Apache-2.0 text is at https://www.apache.org/licenses/LICENSE-2.0
+The GPL-2.0 text is at https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
+
+
+Window, rendering and runtime
+-----------------------------
+
+.NET runtime and libraries (including Microsoft.Extensions.* and
+System.IO.Ports) - MIT
+https://github.com/dotnet/runtime
+
+Avalonia - MIT
+https://github.com/AvaloniaUI/Avalonia
+
+SkiaSharp and HarfBuzzSharp - MIT
+https://github.com/mono/SkiaSharp
+They include the native Skia (BSD-3-Clause, https://skia.org) and HarfBuzz
+(MIT, https://github.com/harfbuzz/harfbuzz) libraries.
+
+ANGLE (av_libglesv2.dll, as built by Avalonia) - BSD-3-Clause
+https://chromium.googlesource.com/angle/angle
+
+MicroCom.Runtime, Tmds.DBus.Protocol - MIT
+https://github.com/kekekeks/MicroCom
+https://github.com/tmds/Tmds.DBus
+
+
+Fonts
+-----
+
+Archivo, Space Grotesk and JetBrains Mono are embedded in the window under the
+SIL Open Font License 1.1. Their licenses are in this same folder:
+Archivo-OFL.txt, SpaceGrotesk-OFL.txt and JetBrainsMono-OFL.txt.

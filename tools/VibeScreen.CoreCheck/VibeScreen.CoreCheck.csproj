@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\VibeScreen.Core\VibeScreen.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- El tema de serie forma parte de la verificación: es el que ve la primera vez quien acaba de
+         instalar, y si deja de ser válido, falla. -->
+    <None Include="..\..\packaging\themes\**\*" LinkBase="themes" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

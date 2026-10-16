@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!-- Como la ventana: sin culturas no se puede comprobar que las cifras salen con los
+         separadores de cada idioma. -->
+    <InvariantGlobalization>false</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- La ventana entera: además de los catálogos, se monta y se le cambia el idioma en caliente. -->
+    <ProjectReference Include="..\..\src\VibeScreen.App\VibeScreen.App.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Avalonia sin pantalla, como en la ThemeCheck. -->
+    <PackageReference Include="Avalonia.Headless" />
+  </ItemGroup>
+
+</Project>

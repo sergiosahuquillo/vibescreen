@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- El dibujo es el de la ventana, no una copia: si la marca cambia, el icono de los ficheros
+         cambia con ella en la siguiente compilación. -->
+    <ProjectReference Include="..\..\src\VibeScreen.App\VibeScreen.App.csproj" />
+  </ItemGroup>
+
+</Project>

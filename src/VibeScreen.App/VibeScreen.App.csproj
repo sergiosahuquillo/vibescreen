@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- WinExe para que en Windows no salga una consola detrás de la ventana. -->
+    <OutputType>WinExe</OutputType>
+    <AssemblyName>vibescreen-app</AssemblyName>
+    <RootNamespace>VibeScreen.App</RootNamespace>
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- La ventana sí necesita culturas, y solo ella: con la globalización invariante no hay forma de
+         saber en qué idioma está el sistema, que es lo que hace falta para «Idioma: el del sistema».
+         La cultura del proceso se deja invariante al arrancar (Loc.CaptureSystem), así que nada
+         cambia de formato sin pedirlo. En Linux esto exige libicu instalado. -->
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <!-- El icono del fichero —el que enseñan el acceso directo, el Explorador y «Aplicaciones
+         instaladas»— lo genera VibeScreen.IconExport y lo pasa packaging/windows/build.ps1. Sin él
+         se compila igual, con el icono genérico: en marcha la ventana pone el suyo. -->
+    <ApplicationIcon Condition="'$(VibeScreenIcon)' != ''">$(VibeScreenIcon)</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Las tres familias del rediseño, empotradas: la ventana no puede depender de que estén
+         instaladas en la máquina, y las tres son OFL, que se redistribuye con su licencia al lado. -->
+    <AvaloniaResource Include="Assets\Fonts\*.ttf" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Los textos de la ventana, uno por idioma. Dentro del ejecutable: un idioma no puede faltar
+         porque alguien haya movido un fichero. -->
+    <EmbeddedResource Include="Localization\*.json" LogicalName="VibeScreen.Localization.%(Filename).json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" />
+    <PackageReference Include="Avalonia.Desktop" />
+    <PackageReference Include="Avalonia.Themes.Fluent" />
+    <!-- El selector de color no entra con el tema Fluent: es su propio paquete y su propio estilo. -->
+    <PackageReference Include="Avalonia.Controls.ColorPicker" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\VibeScreen.Contracts\VibeScreen.Contracts.csproj" />
+    <ProjectReference Include="..\VibeScreen.Core\VibeScreen.Core.csproj" />
+  </ItemGroup>
+
+</Project>

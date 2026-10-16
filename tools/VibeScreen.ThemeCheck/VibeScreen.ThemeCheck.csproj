@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- La ventana entera, porque lo que se verifica es lo que pinta de verdad: la paleta, los
+         estilos y la tabla de claves de Fluent. -->
+    <ProjectReference Include="..\..\src\VibeScreen.App\VibeScreen.App.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Avalonia sin pantalla: los controles se construyen, se les aplica la plantilla y se miden
+         igual que en marcha, pero sin abrir ninguna ventana ni necesitar un escritorio. -->
+    <PackageReference Include="Avalonia.Headless" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- **El diseño forma parte de la verificación.** Es el fichero del export, tal cual: si una
+         medida del CSS deja de coincidir con lo que pinta la ventana, esto falla. -->
+    <None Include="..\..\design\app.css" LinkBase="design" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\design\app.js" LinkBase="design" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

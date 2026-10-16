@@ -1,0 +1,156 @@
+# Compila, pasa los verificadores y empaqueta el instalador en cada empujón. En main, además, publica
+# la release.
+#
+# Los verificadores no necesitan hardware ni servicio: montan paneles, transportes y sensores de
+# mentira, y contrastan el codificador del protocolo contra vectores generados con la lógica de
+# turing-smart-screen-python. Devuelven 0 o 1, así que valen tal cual.
+#
+# Solo Windows, y a propósito: la solución tiene objetivo net10.0-windows —el enumerador de puertos
+# usa el registro y LibreHardwareMonitor es Windows puro—, así que en Linux no compila entera. Cuando
+# entre el backend de sensores de Linux, aquí va un segundo trabajo que compile los objetivos net10.0.
+#
+# La versión: Directory.Build.props dice MAJOR.MINOR y el parche lo pone este workflow, el siguiente
+# al último tag vMAJOR.MINOR.*. En el repositorio no se escribe nunca: queda en el tag. Fuera de main
+# lleva detrás -dev.<ejecución>, para que un instalador de prueba no se confunda con una release.
+# Un commit con [skip ci] en el mensaje no sale en release, porque no llega a ejecutarse nada.
+
+name: build
+
+on:
+  push:
+  pull_request:
+
+# En main se encolan en vez de cancelarse: dos empujones seguidos no pueden calcular el mismo número
+# ni quedarse uno sin release. En las demás ramas, el empujón nuevo deja obsoleto al anterior.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  windows:
+    runs-on: windows-latest
+
+    # Para crear el tag y la release. En los PR desde un fork GitHub lo deja en lectura igualmente.
+    permissions:
+      contents: write
+
+    env:
+      # Ya no viene seguro en las imágenes de GitHub, así que se instala, con versión y hash fijados.
+      INNO_VERSION: 7.1.0
+      INNO_SHA256: 0362a383ed217d4c4239b5933866dd96d3eb2102737da92f80f6057a4b40df2f
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Todo el historial: los tags dicen qué versión toca y desde dónde contar los cambios.
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          # global.json manda en el SDK con el que se trabaja; el 10.0.x de al lado es para que, con su
+          # rollForward, se use el último: el runtime que va dentro del instalador es el del SDK que
+          # publica, y tiene que ser el último parche y no el de hace meses.
+          global-json-file: global.json
+          dotnet-version: 10.0.x
+
+      # Con TreatWarningsAsErrors puesto, esto ya es media revisión: aquí salen CA2000, CA1001 y las
+      # reglas de estilo que exige el .editorconfig.
+      - name: Compilar
+        run: dotnet build --configuration Release
+
+      - name: Protocolo
+        run: dotnet run --project tools/VibeScreen.ProtocolCheck --configuration Release --no-build
+
+      - name: Core
+        run: dotnet run --project tools/VibeScreen.CoreCheck --configuration Release --no-build
+
+      - name: Servicio
+        run: dotnet run --project tools/VibeScreen.ServiceCheck --configuration Release --no-build
+
+      # Los dos idiomas con las mismas claves y los mismos huecos, ninguna clave usada sin texto ni
+      # texto sin usar, y la ventana entera cambiando de idioma en caliente sin pantalla.
+      - name: Idiomas
+        run: dotnet run --project tools/VibeScreen.LocalizationCheck --configuration Release --no-build
+
+      - name: Versión
+        id: version
+        shell: bash
+        run: |
+          base=$(sed -n 's:.*<VersionPrefix>\([0-9]*\.[0-9]*\)\.[0-9]*</VersionPrefix>.*:\1:p' Directory.Build.props)
+          if [ -z "$base" ]; then
+            echo "::error file=Directory.Build.props::No encuentro <VersionPrefix>MAJOR.MINOR.PATCH</VersionPrefix>"
+            exit 1
+          fi
+
+          last=$(git tag --list "v$base.*" | sed -n "s/^v${base//./\\.}\.\([0-9][0-9]*\)$/\1/p" | sort -n | tail -1)
+          version="$base.$(( ${last:--1} + 1 ))"
+          if [ "$GITHUB_EVENT_NAME" != push ] || [ "$GITHUB_REF" != refs/heads/main ]; then
+            version="$version-dev.$GITHUB_RUN_NUMBER"
+          fi
+
+          # La release anterior a la que llega este commit, para contar los cambios desde ahí.
+          previous=$(git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null || true)
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "previous=$previous" >> "$GITHUB_OUTPUT"
+          echo "Versión $version (anterior: ${previous:-ninguna})"
+
+      - name: Inno Setup
+        shell: pwsh
+        run: |
+          $ProgressPreference = 'SilentlyContinue'
+          $tag = 'is-' + ($env:INNO_VERSION -replace '\.', '_')
+          $setup = Join-Path $env:RUNNER_TEMP 'innosetup.exe'
+          Invoke-WebRequest "https://github.com/jrsoftware/issrc/releases/download/$tag/innosetup-$env:INNO_VERSION-x64.exe" -OutFile $setup
+
+          $hash = (Get-FileHash $setup -Algorithm SHA256).Hash
+          if ($hash -ne $env:INNO_SHA256) { throw "El instalador de Inno Setup no es el esperado: SHA-256 $hash" }
+
+          $dir = Join-Path $env:RUNNER_TEMP 'InnoSetup'
+          $process = Start-Process $setup -Wait -PassThru -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-', '/ALLUSERS', "/DIR=`"$dir`""
+          if ($process.ExitCode -ne 0) { throw "Inno Setup no se ha instalado: código $($process.ExitCode)" }
+          "ISCC=$dir\ISCC.exe" >> $env:GITHUB_ENV
+
+      - name: Instalador
+        shell: pwsh
+        run: ./packaging/windows/build.ps1 -Version '${{ steps.version.outputs.version }}'
+
+      # FIRMA: cuando haya certificado, aquí va un paso que firme artifacts/installer/*.exe —y antes,
+      # con build.ps1, los dos ejecutables— con signtool o con Azure Trusted Signing, leyendo el
+      # certificado de los secretos del repositorio. Sin firma, SmartScreen avisa al abrirlo.
+
+      # En todas las ramas y PR, para poder probar el instalador antes de mezclar.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VibeScreen-${{ steps.version.outputs.version }}-setup
+          path: artifacts/installer/*.exe
+          if-no-files-found: error
+
+      # El código fuente no se adjunta: GitHub pone en cada release el zip y el tar.gz del tag.
+      - name: Release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+          PREVIOUS: ${{ steps.version.outputs.previous }}
+        run: |
+          {
+            echo "## Cambios"
+            echo
+            if [ -n "$PREVIOUS" ]; then
+              git log --no-merges --pretty='format:- %s' "$PREVIOUS..HEAD"
+            else
+              git log --no-merges --pretty='format:- %s'
+            fi
+            echo
+            if [ -n "$PREVIOUS" ]; then
+              echo
+              echo "**Todos los cambios**: https://github.com/$GITHUB_REPOSITORY/compare/$PREVIOUS...v$VERSION"
+            fi
+          } > notes.md
+
+          gh release create "v$VERSION" "artifacts/installer/VibeScreen-$VERSION-setup.exe" \
+            --title "VibeScreen $VERSION" \
+            --notes-file notes.md \
+            --target "$GITHUB_SHA"

@@ -1,0 +1,39 @@
+<Project>
+
+  <!-- Las versiones de todos los paquetes, en un solo sitio.
+
+       Existe por un fallo concreto: VibeScreen.Core fijaba SkiaSharp 3.119.0 y Avalonia.Desktop
+       arrastra Avalonia.Skia, que pide 3.119.4. Como el choque era entre dos referencias
+       transitivas, NuGet resolvía la más alta y no avisaba de nada: el servicio pintaba con una
+       versión de Skia y la GUI con otra. Eso deja en el aire la premisa de la que vive el editor
+       —que la vista previa no se parece al panel, es el panel—, porque pasa a depender de que
+       ningún parche toque el rasterizado ni la métrica de texto. -->
+
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Skia la usan el render del panel (Core) y la ventana (Avalonia), y tiene que ser la misma.
+         Manda la que pide Avalonia: subirla es gratis y bajar la de Avalonia no se puede. -->
+    <PackageVersion Include="SkiaSharp" Version="3.119.4" />
+    <PackageVersion Include="SkiaSharp.NativeAssets.Linux" Version="3.119.4" />
+
+    <PackageVersion Include="Avalonia" Version="12.1.2" />
+    <PackageVersion Include="Avalonia.Desktop" Version="12.1.2" />
+    <PackageVersion Include="Avalonia.Themes.Fluent" Version="12.1.2" />
+    <PackageVersion Include="Avalonia.Controls.ColorPicker" Version="12.1.2" />
+
+    <!-- Solo para ThemeCheck: Avalonia sin pantalla, para medir los controles de verdad sin abrir
+         una ventana. Misma versión que el resto, que es lo que hace que mida lo mismo. -->
+    <PackageVersion Include="Avalonia.Headless" Version="12.1.2" />
+
+    <PackageVersion Include="System.IO.Ports" Version="10.0.3" />
+    <PackageVersion Include="LibreHardwareMonitorLib" Version="0.9.6" />
+
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.3" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.3" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting.Systemd" Version="10.0.3" />
+  </ItemGroup>
+
+</Project>

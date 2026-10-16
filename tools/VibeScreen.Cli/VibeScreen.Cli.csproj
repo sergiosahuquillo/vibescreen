@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>net10.0;net10.0-windows</TargetFrameworks>
+    <TargetFramework></TargetFramework>
+    <AssemblyName>vibescreen</AssemblyName>
+    <RootNamespace>VibeScreen.Cli</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\VibeScreen.Contracts\VibeScreen.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\VibeScreen.Core\VibeScreen.Core.csproj" />
+  </ItemGroup>
+
+</Project>
