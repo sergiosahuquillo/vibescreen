@@ -16,9 +16,17 @@
 
 name: build
 
+# Lo que solo es documentación no compila ni saca release. Si el empujón trae algo más, se ejecuta
+# entero, y esos commits salen igualmente en las notas de la siguiente release.
 on:
   push:
+    paths-ignore: &documentacion
+      - README.md
+      - .github/README.md
+      - .github/assets/**
+      - docs/**
   pull_request:
+    paths-ignore: *documentacion
 
 # En main se encolan en vez de cancelarse: dos empujones seguidos no pueden calcular el mismo número
 # ni quedarse uno sin release. En las demás ramas, el empujón nuevo deja obsoleto al anterior.
