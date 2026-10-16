@@ -156,7 +156,8 @@ counts as MAJOR.MINOR; CI sets the patch to the next one after the latest `vMAJO
 passes it to both executables and the installer, so the status bar, the executable, *Installed apps*,
 the tag and the release all agree. To move to 1.1 or 2.0, change `VersionPrefix`; the next release
 comes out as 1.1.0. Local builds carry a `-dev` suffix and other branches `-dev.<run>`, so they can't be
-mistaken for a release. A commit with `[skip ci]` in its message doesn't produce one.
+mistaken for a release. A commit with `[skip ci]` in its message doesn't produce one, and neither does
+a push that only touches documentation (both READMEs, `.github/assets/` and `docs/`).
 
 On other branches and in pull requests the installer is still built and left as a workflow artifact, so
 you can try it before merging. To build it locally you need Inno Setup 7

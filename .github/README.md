@@ -7,10 +7,10 @@
 **Turn your USB smart screen into a live hardware dashboard.**
 Design it in a visual editor, set it once, and forget about it: it keeps running in the background.
 
-[![Latest release](https://img.shields.io/github/v/release/sergiosahuquillo/vibescreen?style=flat-square&color=FF6F61)](https://github.com/sergiosahuquillo/vibescreen/releases/latest)
+[![Latest release](https://img.shields.io/badge/dynamic/xml?url=https%3A%2F%2Fgithub.com%2Fsergiosahuquillo%2Fvibescreen%2Freleases.atom&query=substring-after%28%2F%2F%2A%5Blocal-name%28%29%3D%22entry%22%5D%5B1%5D%2F%2A%5Blocal-name%28%29%3D%22link%22%5D%2F%40href%2C%22%2Freleases%2Ftag%2F%22%29&label=release&color=FF6F61&style=flat-square)](https://github.com/sergiosahuquillo/vibescreen/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/sergiosahuquillo/vibescreen/total?style=flat-square)](https://github.com/sergiosahuquillo/vibescreen/releases)
 [![Build](https://img.shields.io/github/actions/workflow/status/sergiosahuquillo/vibescreen/build.yml?branch=main&style=flat-square)](https://github.com/sergiosahuquillo/vibescreen/actions/workflows/build.yml)
-[![License: GPL-3.0](https://img.shields.io/github/license/sergiosahuquillo/vibescreen?style=flat-square)](../LICENSE)
+[![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-orange?style=flat-square)](../LICENSE)
 ![Windows 10 | 11](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6?style=flat-square)
 
 [![Download for Windows](https://img.shields.io/badge/Download_for_Windows-FF6F61?style=for-the-badge)](https://github.com/sergiosahuquillo/vibescreen/releases/latest)
