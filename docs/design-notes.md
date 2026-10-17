@@ -495,6 +495,31 @@ was a service the manager considered healthy while the panel showed a frozen ima
 answered a state that was no longer true. Besides, the panel loop catches **any** exception and
 retries: the sensor backend drops to ring 0 and can throw whatever it likes on resume from suspend.
 
+**Coming back from suspend repaints everything.** Sleep, hibernation and a Windows "Shut down" with
+fast startup on, which is the default, all leave the service process alive: that last one hibernates
+session 0 with the services in it. The panel, though, loses power and comes back in portrait and
+blank. The port doesn't fail, because Windows reuses the same device on resume, so the loop went on
+sending only the regions that changed, in landscape coordinates, to a panel in portrait: rotated
+stripes over white, with the right third empty, until someone restarted the service. Revision A
+answers nothing, so the signal has to come from the system. The service lifetime accepts power
+events, and on resume `PanelHost` closes the panel, waits `ResumeSettle` so the orientation doesn't
+land while the firmware is still bringing up the screen, and reopens it through the reconnect path,
+which sets orientation, power and brightness again and sends the whole frame. Windows sends two
+resume events, and the second one tends to land during that wait; it's the same resume, so the wait
+swallows it instead of paying for another reopen.
+
+**And going to sleep turns the panel off.** In real sleep (S3) this board keeps the USB powered, so
+the panel stayed on through the night with the last image at full brightness. On the suspend event
+the lifetime gives `PanelHost.SuspendAsync` two seconds — what Windows allows — to stop painting and
+send screen-off, without touching the user's setting. Painting stays stopped until the panel is
+reopened: otherwise, in the second between resume and the event, the loop sent rotated stripes to a
+panel that had come back in portrait.
+
+Separately, the serial driver aborts a write that was in flight across a suspend, and `SerialStream`
+reports that as an `OperationCanceledException` nobody asked for. The panel loop took it for the
+service stopping and returned, leaving a process that was up and doing nothing. The transport now
+reports it as a lost panel, and the loop only stops on its own cancellation.
+
 **Commands are always answered, even when they fail strangely.** `catch` lists that enumerate types
 always fall short; without a catch-all, an unexpected exception left the command, left the client,
 closed the pipe and was discarded unobserved: the user saw "connection closed without answering" and

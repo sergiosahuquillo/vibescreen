@@ -38,9 +38,22 @@ public sealed class PanelHost : IAsyncDisposable
     private int _sensorCount;
     private int _reconnects;
     private bool _connected;
+    private int _stateLost;
+    private int _suspended;
 
     /// <summary>Cuánto mira atrás el medidor de caudal. Bastante para que no parpadee y poco para que reaccione.</summary>
     public static readonly TimeSpan RateWindowLength = TimeSpan.FromSeconds(5);
+
+    /// <summary>
+    /// Cuánto se le deja arrancar al panel cuando el sistema vuelve de suspensión, antes de abrirlo.
+    /// </summary>
+    /// <remarks>
+    /// El panel vuelve de quedarse sin corriente iniciando su pantalla, y una orientación que llegue
+    /// mientras tanto la pisa el propio firmware. La implementación de referencia espera 5 s tras un
+    /// RESET, que además incluye volver a aparecer en el USB; aquí el puerto ya suele estar, y cada
+    /// segundo de espera es un segundo de pantalla en blanco.
+    /// </remarks>
+    public static readonly TimeSpan ResumeSettle = TimeSpan.FromSeconds(3);
 
     public PanelHost(IConfigStore store, ISensorProvider sensors, IPanelConnector connector, ILogger<PanelHost> logger)
     {
@@ -88,19 +101,36 @@ public sealed class PanelHost : IAsyncDisposable
                 await ConnectAsync(cancellationToken).ConfigureAwait(false);
                 attempt = 0;
                 await PaintAsync(cancellationToken).ConfigureAwait(false);
+
+                // Pintar solo vuelve sin fallo cuando el panel ha podido perder su estado. Se cierra,
+                // se le deja arrancar, y la siguiente vuelta lo abre y lo inicializa desde cero.
+                //
+                // El estado antes que la cuenta, como en el catch: el estado se lee sin cerrojo, y al
+                // revés se veía la reconexión ya contada con el panel viejo todavía pintando.
+                SetState(ServiceState.Searching, Notice.Of("panel.resumed", Math.Round(ResumeSettle.TotalSeconds)));
+                _reconnects++;
+                _connected = false;
+                _logger.LogInformation("El sistema vuelve de suspensión: se reabre el panel en {Segundos} s.",
+                    ResumeSettle.TotalSeconds);
+
+                await CloseAsync().ConfigureAwait(false);
+                await Delay(ResumeSettle, cancellationToken).ConfigureAwait(false);
+
+                // Lo que haya llegado durante la espera es esta misma vuelta. Windows avisa dos veces
+                // —la automática siempre, y la de usuario si hay alguien delante—, y la segunda caía
+                // en plena espera y costaba otra reapertura entera.
+                Volatile.Write(ref _stateLost, 0);
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
+                // Solo la cancelación propia, que es parar el servicio. Una que no es de nadie —la que
+                // daba el puerto al suspender con una escritura a medias— sacaba al bucle sin parar el
+                // proceso: la pantalla se quedaba congelada y no había quien la reenganchara. Esa va
+                // al catch de abajo y se reintenta como cualquier otro fallo.
                 break;
             }
             catch (Exception e)
             {
-                if (_connected)
-                {
-                    _reconnects++;
-                    _connected = false;
-                }
-
                 attempt++;
                 var wait = ReconnectDelay.For(attempt);
 
@@ -121,6 +151,14 @@ public sealed class PanelHost : IAsyncDisposable
                         wait.TotalSeconds);
                 }
 
+                // Después del estado y no antes: el estado se lee sin cerrojo, y con la cuenta delante
+                // había un momento en que se veía la reconexión contada y el panel caído aún «pintando».
+                if (_connected)
+                {
+                    _reconnects++;
+                    _connected = false;
+                }
+
                 await CloseAsync().ConfigureAwait(false);
                 try
                 {
@@ -135,6 +173,64 @@ public sealed class PanelHost : IAsyncDisposable
 
         SetState(ServiceState.Stopping, null);
         await CloseAsync().ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Avisa de que el panel ha podido volver a su estado de fábrica sin que el puerto se entere: lo
+    /// que pasa al volver de suspensión, de hibernación o de un «Apagar» con el inicio rápido de Windows.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// En los tres el proceso sigue vivo, pero el panel se queda sin corriente y vuelve en vertical y
+    /// en blanco. El puerto, en cambio, no falla: Windows reaprovecha el mismo dispositivo al reanudar.
+    /// Así que el bucle seguía mandando solo lo que cambiaba, con coordenadas apaisadas, a un panel en
+    /// vertical, y salían franjas giradas sobre fondo blanco hasta que alguien reiniciaba el servicio.
+    /// La revisión A no contesta a nada, así que el aviso tiene que venir del sistema.
+    /// </para>
+    /// <para>
+    /// Sin cerrojo y desde cualquier hilo: solo levanta una marca, que el bucle de pintado recoge en
+    /// el siguiente ciclo. Avisar dos veces es lo mismo que avisar una.
+    /// </para>
+    /// </remarks>
+    public void PanelMayHaveReset() => Volatile.Write(ref _stateLost, 1);
+
+    /// <summary>
+    /// Apaga el panel y deja de pintar, porque el sistema se va a suspender.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// En la suspensión de verdad (S3) esta placa deja el USB con corriente, y el panel se quedaba con
+    /// la última imagen a todo brillo mientras el equipo dormía. Apagarlo es cosa nuestra. Al
+    /// hibernar, o en un «Apagar» con el inicio rápido, también llega este aviso; ahí se va a quedar
+    /// sin corriente igual, pero así no se pinta nada más.
+    /// </para>
+    /// <para>
+    /// Sin pintar hasta que se vuelva a abrir: entre que el sistema vuelve y llega el aviso pasa un
+    /// segundo, y el bucle lo pasaba mandando lo que cambiaba a un panel que, si se había quedado sin
+    /// corriente, estaba en vertical. Esas eran las franjas giradas antes de recuperarse.
+    /// </para>
+    /// <para>
+    /// No toca la configuración: la pantalla sigue encendida para el usuario, y al volver se abre
+    /// como diga ella. Conectar quita la marca, porque deja el panel inicializado desde cero.
+    /// </para>
+    /// </remarks>
+    public async Task SuspendAsync(CancellationToken cancellationToken = default)
+    {
+        // Antes del cerrojo: si el bucle lo tiene en mitad de un ciclo, el siguiente ya no pinta.
+        Volatile.Write(ref _suspended, 1);
+
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            if (_panel is null || !_config.ScreenOn) return;
+
+            await _panel.Driver.SetScreenPowerAsync(false, cancellationToken).ConfigureAwait(false);
+            _logger.LogInformation("El sistema se suspende: panel apagado.");
+        }
+        finally
+        {
+            _gate.Release();
+        }
     }
 
     /// <summary>
@@ -497,6 +593,11 @@ public sealed class PanelHost : IAsyncDisposable
     private async Task ConnectAsync(CancellationToken cancellationToken)
     {
         SetState(ServiceState.Searching, _detail);
+
+        // Una conexión nueva deja el panel inicializado desde cero, encendido o no según la
+        // configuración, así que lo de la suspensión ya no aplica.
+        Volatile.Write(ref _suspended, 0);
+
         var orientation = _layout?.Display.Orientation ?? Orientation.Portrait;
         var panel = await _connector.OpenAsync(_config.PortName, orientation, _config.ScreenOn, cancellationToken).ConfigureAwait(false);
 
@@ -517,11 +618,22 @@ public sealed class PanelHost : IAsyncDisposable
         }
     }
 
+    /// <summary>Pinta hasta que paren el servicio, hasta que el panel falle o hasta que haya perdido su estado.</summary>
+    /// <remarks>
+    /// La marca de estado perdido no se borra al conectar, y es a propósito: solo la borra la espera de
+    /// la vuelta. Al reanudar, una escritura puede fallar antes de que llegue el aviso; si el aviso
+    /// llega durante esa espera corta y conectar lo borrara, el panel se abriría en pleno arranque y la
+    /// orientación se perdería otra vez. Así, el peor caso es reabrirlo una vez de más.
+    /// </remarks>
     private async Task PaintAsync(CancellationToken cancellationToken)
     {
         using var timer = new PeriodicTimer(LayoutRunner.Tick);
         while (await timer.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false))
         {
+            // Primero la vuelta y luego la suspensión: al volver hay que salir a reabrir, no seguir quieto.
+            if (Interlocked.Exchange(ref _stateLost, 0) == 1) return;
+            if (Volatile.Read(ref _suspended) == 1) continue;
+
             await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {

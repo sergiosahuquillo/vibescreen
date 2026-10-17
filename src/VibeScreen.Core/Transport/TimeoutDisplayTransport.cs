@@ -95,11 +95,15 @@ public sealed class TimeoutDisplayTransport : IDisplayTransport
             Abandon(task);
             throw Late(what);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             // Quien llama ha cancelado: eso es apagar el servicio, no un panel que no contesta.
             Abandon(task);
             throw;
+        }
+        catch (OperationCanceledException e)
+        {
+            throw Aborted(e);
         }
     }
 
@@ -117,10 +121,14 @@ public sealed class TimeoutDisplayTransport : IDisplayTransport
             Abandon(task);
             throw Late(what);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             Abandon(task);
             throw;
+        }
+        catch (OperationCanceledException e)
+        {
+            throw Aborted(e);
         }
     }
 
@@ -138,4 +146,19 @@ public sealed class TimeoutDisplayTransport : IDisplayTransport
     /// <param name="what">El aviso de la operación que no ha contestado: <c>panel.timeout.open</c>…</param>
     private NoticeTimeoutException Late(string what) =>
         new(Notice.Of(what, _inner.Name, Math.Round(_deadline.TotalSeconds)));
+
+    /// <summary>
+    /// Una operación que vuelve cancelada sin que nadie la haya cancelado: es el sistema abortando la
+    /// E/S del puerto, y eso es un panel perdido.
+    /// </summary>
+    /// <remarks>
+    /// Pasa al suspender el equipo con una escritura a medias: el driver serie la aborta y
+    /// <c>SerialStream</c> traduce el <c>ERROR_OPERATION_ABORTED</c> en
+    /// <see cref="OperationCanceledException"/>. Tal cual, llegaba al bucle del panel como si fuera
+    /// apagar el servicio: el bucle se salía, el proceso seguía en pie sin hacer nada y la pantalla se
+    /// quedaba congelada en lo último que pintó. Como <see cref="IOException"/> es lo que el servicio ya
+    /// trata como panel caído: cierra, espera y vuelve a conectar.
+    /// </remarks>
+    private NoticeIOException Aborted(OperationCanceledException e) =>
+        new(Notice.Of("panel.aborted", _inner.Name), e);
 }

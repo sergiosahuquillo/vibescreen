@@ -5,6 +5,9 @@ using VibeScreen.Contracts;
 using VibeScreen.Core.Layout;
 using VibeScreen.Core.Sensors;
 using VibeScreen.Service;
+#if WINDOWS
+using Microsoft.Extensions.Hosting.WindowsServices;
+#endif
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -12,6 +15,11 @@ var builder = Host.CreateApplicationBuilder(args);
 // Con esto el proceso sabe hablar con el SCM. Lanzado a mano desde una consola no cambia nada, así
 // que el mismo binario sirve para depurar y para el servicio de verdad.
 builder.Services.AddWindowsService(options => options.ServiceName = "VibeScreen");
+
+// El mismo ciclo de vida, pero enterándose de cuándo vuelve el sistema de suspensión, que el panel se
+// queda sin corriente y el proceso no. Va detrás porque gana el último que se registra.
+if (WindowsServiceHelpers.IsWindowsService())
+    builder.Services.AddSingleton<IHostLifetime, PowerAwareServiceLifetime>();
 #else
 builder.Services.AddSystemd();
 #endif
