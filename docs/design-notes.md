@@ -504,7 +504,21 @@ stripes over white, with the right third empty, until someone restarted the serv
 answers nothing, so the signal has to come from the system. The service lifetime accepts power
 events, and on resume `PanelHost` closes the panel, waits `ResumeSettle` so the orientation doesn't
 land while the firmware is still bringing up the screen, and reopens it through the reconnect path,
-which sets orientation, power and brightness again and sends the whole frame.
+which sets orientation, power and brightness again and sends the whole frame. Windows sends two
+resume events, and the second one tends to land during that wait; it's the same resume, so the wait
+swallows it instead of paying for another reopen.
+
+**And going to sleep turns the panel off.** In real sleep (S3) this board keeps the USB powered, so
+the panel stayed on through the night with the last image at full brightness. On the suspend event
+the lifetime gives `PanelHost.SuspendAsync` two seconds — what Windows allows — to stop painting and
+send screen-off, without touching the user's setting. Painting stays stopped until the panel is
+reopened: otherwise, in the second between resume and the event, the loop sent rotated stripes to a
+panel that had come back in portrait.
+
+Separately, the serial driver aborts a write that was in flight across a suspend, and `SerialStream`
+reports that as an `OperationCanceledException` nobody asked for. The panel loop took it for the
+service stopping and returned, leaving a process that was up and doing nothing. The transport now
+reports it as a lost panel, and the loop only stops on its own cancellation.
 
 **Commands are always answered, even when they fail strangely.** `catch` lists that enumerate types
 always fall short; without a catch-all, an unexpected exception left the command, left the client,

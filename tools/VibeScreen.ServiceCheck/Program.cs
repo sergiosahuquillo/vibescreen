@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging.Abstractions;
 using VibeScreen.Contracts;
+using VibeScreen.Core.Rendering;
 using VibeScreen.Core.Sensors;
 using VibeScreen.Core.Storage;
 using VibeScreen.Protocol.Display;
@@ -415,12 +416,14 @@ try
 
     var flaky = new FakeConnector { FailFirst = 2 };
     var esperas = new List<TimeSpan>();
+    Action? enLaEsperaDeLaVuelta = null;
     var config = new MemoryConfigStore();
     await using (var host = new PanelHost(config, new CountingSensors("cpu/0/temperature/package"), flaky, NullLogger<PanelHost>.Instance) { LayoutRoot = temp })
     {
         host.Delay = (wait, _) =>
         {
             esperas.Add(wait);
+            if (wait == PanelHost.ResumeSettle) enLaEsperaDeLaVuelta?.Invoke();
             return Task.CompletedTask;
         };
 
@@ -470,6 +473,32 @@ try
         Check(esperas[^1] == PanelHost.ResumeSettle, "después de dejarle arrancar");
         Check(flaky.Last!.Blits > 0, "el panel despertado recibe su fotograma completo");
         Check(flaky.Last!.Brightness is [20], "y el brillo de la configuración");
+
+        // Se suspende de verdad (S3): la placa deja el USB con corriente y el panel se quedaba con la
+        // última imagen a todo brillo mientras el equipo dormía.
+        var suspendido = flaky.Last!;
+        await host.SuspendAsync();
+        Check(suspendido.ScreenPower is [.., false], "al suspender apaga la pantalla");
+        Check(config.Saved?.ScreenOn == true && host.GetStatus().ScreenOn, "sin tocar la configuración: para el usuario sigue encendida");
+
+        int blitsAlSuspender = suspendido.Blits;
+        await Task.Delay(LayoutRunner.Tick * 6);
+        Check(suspendido.Blits == blitsAlSuspender, $"y deja de pintar mientras está suspendido ({suspendido.Blits - blitsAlSuspender} blits de más)");
+
+        // Vuelve, y Windows avisa dos veces: la segunda suele caer en plena espera, y es la misma vuelta.
+        abiertos = flaky.Opens;
+        enLaEsperaDeLaVuelta = host.PanelMayHaveReset;
+        host.PanelMayHaveReset();
+
+        Check(await WaitUntil(() => flaky.Last != suspendido && host.GetStatus().State == ServiceState.Painting,
+                TimeSpan.FromSeconds(10)),
+            "al volver de la suspensión reabre el panel y vuelve a pintar");
+        enLaEsperaDeLaVuelta = null;
+        Check(flaky.LastScreenOn == true, "encendido, como dice la configuración");
+        Check(flaky.Last!.Blits > 0, "con su fotograma completo");
+
+        await Task.Delay(LayoutRunner.Tick * 6);
+        Check(flaky.Opens == abiertos + 1, $"y el segundo aviso de la misma vuelta no lo reabre otra vez ({flaky.Opens - abiertos} aperturas)");
 
         // Una cancelación que no es del servicio. El transporte ya traduce la que da el puerto al
         // suspender, pero si se cuela otra, el bucle no puede tomarla por apagar el servicio: salía,
@@ -756,10 +785,14 @@ sealed class FakeConnector : IPanelConnector
 
     public FakeDriver? Last { get; private set; }
 
+    /// <summary>Si la última apertura pidió la pantalla encendida, que es lo que hace inicializar el panel.</summary>
+    public bool? LastScreenOn { get; private set; }
+
     public ValueTask<PanelConnection> OpenAsync(
         string? portName, Orientation orientation, bool screenOn, CancellationToken cancellationToken = default)
     {
         Opens++;
+        LastScreenOn = screenOn;
         if (Opens <= FailFirst)
             throw new InvalidOperationException("No se ha encontrado ningún panel compatible.");
 
@@ -820,7 +853,14 @@ sealed class FakeDriver(Orientation orientation) : IDisplayDriver
 
     public ValueTask ClearAsync(CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
 
-    public ValueTask SetScreenPowerAsync(bool screenOn, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
+    /// <summary>Los encendidos y apagados que le han pedido después de abrirlo, en orden.</summary>
+    public List<bool> ScreenPower { get; } = [];
+
+    public ValueTask SetScreenPowerAsync(bool screenOn, CancellationToken cancellationToken = default)
+    {
+        ScreenPower.Add(screenOn);
+        return ValueTask.CompletedTask;
+    }
 
     public ValueTask DisposeAsync()
     {
