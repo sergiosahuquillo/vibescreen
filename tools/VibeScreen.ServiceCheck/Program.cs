@@ -459,9 +459,12 @@ try
         int abiertos = flaky.Opens;
         host.PanelMayHaveReset();
 
-        Check(await WaitUntil(() => host.GetStatus().Reconnects == 2 && host.GetStatus().State == ServiceState.Painting,
+        // Se espera al panel nuevo y no a la cuenta de reconexiones: lo que se comprueba es que se ha
+        // reabierto, y la cuenta sube antes de que el panel viejo se haya cerrado.
+        Check(await WaitUntil(() => flaky.Last != dormido && host.GetStatus().State == ServiceState.Painting,
                 TimeSpan.FromSeconds(10)),
             "al volver de suspensión reabre el panel aunque el puerto no haya fallado");
+        Check(host.GetStatus().Reconnects == 2, "y lo cuenta como una reconexión");
         Check(dormido.Disposed, "cierra el que tenía antes de reabrirlo");
         Check(flaky.Opens == abiertos + 1, "y lo abre una sola vez");
         Check(esperas[^1] == PanelHost.ResumeSettle, "después de dejarle arrancar");

@@ -103,9 +103,12 @@ public sealed class PanelHost : IAsyncDisposable
 
                 // Pintar solo vuelve sin fallo cuando el panel ha podido perder su estado. Se cierra,
                 // se le deja arrancar, y la siguiente vuelta lo abre y lo inicializa desde cero.
+                //
+                // El estado antes que la cuenta, como en el catch: el estado se lee sin cerrojo, y al
+                // revés se veía la reconexión ya contada con el panel viejo todavía pintando.
+                SetState(ServiceState.Searching, Notice.Of("panel.resumed", Math.Round(ResumeSettle.TotalSeconds)));
                 _reconnects++;
                 _connected = false;
-                SetState(ServiceState.Searching, Notice.Of("panel.resumed", Math.Round(ResumeSettle.TotalSeconds)));
                 _logger.LogInformation("El sistema vuelve de suspensión: se reabre el panel en {Segundos} s.",
                     ResumeSettle.TotalSeconds);
 
@@ -118,12 +121,6 @@ public sealed class PanelHost : IAsyncDisposable
             }
             catch (Exception e)
             {
-                if (_connected)
-                {
-                    _reconnects++;
-                    _connected = false;
-                }
-
                 attempt++;
                 var wait = ReconnectDelay.For(attempt);
 
@@ -142,6 +139,14 @@ public sealed class PanelHost : IAsyncDisposable
                         Notice.Of("panel.unexpected", Math.Round(wait.TotalSeconds)).With(Notice.From(e)));
                     _logger.LogError(e, "Fallo inesperado en el bucle del panel. Siguiente intento en {Segundos} s.",
                         wait.TotalSeconds);
+                }
+
+                // Después del estado y no antes: el estado se lee sin cerrojo, y con la cuenta delante
+                // había un momento en que se veía la reconexión contada y el panel caído aún «pintando».
+                if (_connected)
+                {
+                    _reconnects++;
+                    _connected = false;
                 }
 
                 await CloseAsync().ConfigureAwait(false);
