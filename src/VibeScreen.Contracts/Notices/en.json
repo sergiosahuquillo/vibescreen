@@ -81,6 +81,7 @@
   "layout.widget.refresh": "{1}: refreshMs must be at least {0}.",
   "layout.widget.size": "{0}: size must be greater than 0.",
   "layout.widget.thickness": "{0}: thickness must be greater than 0.",
+  "panel.aborted": "Windows cut off the communication with the panel {0}. It usually happens when the computer goes to sleep.",
   "panel.no-layout": "No layout: the panel is blank.",
   "panel.not-found": "No compatible panel was found.",
   "panel.not-found.port-hint": "No compatible panel was found. Use --port to name it by hand.",

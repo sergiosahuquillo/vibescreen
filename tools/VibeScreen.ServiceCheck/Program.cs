@@ -471,6 +471,18 @@ try
         Check(flaky.Last!.Blits > 0, "el panel despertado recibe su fotograma completo");
         Check(flaky.Last!.Brightness is [20], "y el brillo de la configuración");
 
+        // Una cancelación que no es del servicio. El transporte ya traduce la que da el puerto al
+        // suspender, pero si se cuela otra, el bucle no puede tomarla por apagar el servicio: salía,
+        // el proceso seguía en pie sin hacer nada y la pantalla se quedaba congelada.
+        var cortado = flaky.Last!;
+        cortado.FailAsCancelled = true;
+        cortado.FailFromBlit = cortado.Blits + 1;
+
+        Check(await WaitUntil(() => flaky.Last != cortado && host.GetStatus().State == ServiceState.Painting,
+                TimeSpan.FromSeconds(10)),
+            "una cancelación que no es del servicio no saca al bucle: reconecta");
+        Check(!running.IsCompleted, "y el bucle sigue en marcha");
+
         await cts.CancelAsync();
         await running;
         Check(host.GetStatus().State == ServiceState.Stopping, "al parar deja de pintar");
@@ -763,6 +775,9 @@ sealed class FakeDriver(Orientation orientation) : IDisplayDriver
     /// <summary>A partir de este blit, el panel se comporta como si lo hubieran desenchufado.</summary>
     public int? FailFromBlit { get; set; }
 
+    /// <summary>Que el fallo llegue como una cancelación que no es de nadie, y no como un panel perdido.</summary>
+    public bool FailAsCancelled { get; set; }
+
     public bool Disposed { get; private set; }
 
     public DisplayCapabilities Capabilities => FakeConnector.Capabilities;
@@ -789,7 +804,7 @@ sealed class FakeDriver(Orientation orientation) : IDisplayDriver
     {
         Blits++;
         if (FailFromBlit is { } limit && Blits >= limit)
-            throw new IOException("El panel se ha desenchufado.");
+            throw FailAsCancelled ? new OperationCanceledException() : new IOException("El panel se ha desenchufado.");
 
         return ValueTask.CompletedTask;
     }

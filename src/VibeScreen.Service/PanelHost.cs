@@ -115,8 +115,12 @@ public sealed class PanelHost : IAsyncDisposable
                 await CloseAsync().ConfigureAwait(false);
                 await Delay(ResumeSettle, cancellationToken).ConfigureAwait(false);
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
+                // Solo la cancelación propia, que es parar el servicio. Una que no es de nadie —la que
+                // daba el puerto al suspender con una escritura a medias— sacaba al bucle sin parar el
+                // proceso: la pantalla se quedaba congelada y no había quien la reenganchara. Esa va
+                // al catch de abajo y se reintenta como cualquier otro fallo.
                 break;
             }
             catch (Exception e)

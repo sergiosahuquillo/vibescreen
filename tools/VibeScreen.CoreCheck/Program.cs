@@ -1611,6 +1611,18 @@ try
 
         Check(alApagar is OperationCanceledException,
               $"y cancelar es cancelar, no un plazo vencido ({alApagar?.GetType().Name ?? "nada"})");
+
+        // Lo contrario también pasó de verdad: al suspender el equipo con una escritura a medias, el
+        // driver serie la aborta y SerialStream lo cuenta como cancelación sin que nadie haya cancelado.
+        // El bucle del panel lo tomaba por apagar el servicio, se salía y dejaba la pantalla congelada.
+        var abortado = new TimeoutDisplayTransport(new AbortedTransport(), plazo);
+        Exception? alSuspender = null;
+        try { await abortado.WriteAsync(new byte[] { 1 }); }
+        catch (Exception e) { alSuspender = e; }
+
+        Check(alSuspender is IOException,
+              $"una escritura que aborta el sistema es un panel perdido, no apagar el servicio ({alSuspender?.GetType().Name ?? "nada"})");
+        Check(alSuspender?.InnerException is OperationCanceledException, "y lleva dentro la cancelación que la causó");
     }
 }
 catch (Exception e)
@@ -1666,6 +1678,36 @@ sealed class StuckTransport : IDisplayTransport
     // Sin el token a propósito: una escritura solapada ya en vuelo tampoco se entera de que la
     // cancelan, y el plazo tiene que funcionar igual.
     private static ValueTask Never() => new(new TaskCompletionSource().Task);
+}
+
+/// <summary>Un puerto al que el sistema le aborta la E/S, como al suspender el equipo con una escritura a medias.</summary>
+sealed class AbortedTransport : IDisplayTransport
+{
+    public bool IsOpen => true;
+    public string Name => "abortado";
+
+    public ValueTask OpenAsync(CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
+
+    public ValueTask WriteAsync(ReadOnlyMemory<byte> data, CancellationToken cancellationToken = default) => Aborted();
+
+    public ValueTask FlushAsync(CancellationToken cancellationToken = default) => Aborted();
+
+    public async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+    {
+        await Aborted().ConfigureAwait(false);
+        return 0;
+    }
+
+    public ValueTask CloseAsync() => ValueTask.CompletedTask;
+
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+
+    // Así llega de SerialStream: termina más tarde, y cancelada con un token que no es de nadie.
+    private static async ValueTask Aborted()
+    {
+        await Task.Yield();
+        throw new OperationCanceledException();
+    }
 }
 
 /// <summary>Un transporte que contesta por trozos, como hace de verdad un puerto serie.</summary>

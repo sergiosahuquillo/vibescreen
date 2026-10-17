@@ -81,6 +81,7 @@
   "layout.widget.refresh": "{1}: refreshMs tiene que ser al menos {0}.",
   "layout.widget.size": "{0}: size tiene que ser mayor que 0.",
   "layout.widget.thickness": "{0}: thickness tiene que ser mayor que 0.",
+  "panel.aborted": "Windows ha cortado la comunicación con el panel {0}. Suele pasar al suspender el equipo.",
   "panel.no-layout": "Sin layout: el panel está en blanco.",
   "panel.not-found": "No se ha encontrado ningún panel compatible.",
   "panel.not-found.port-hint": "No se ha encontrado ningún panel compatible. Usa --port para indicarlo a mano.",
