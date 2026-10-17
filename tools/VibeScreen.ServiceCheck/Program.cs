@@ -453,6 +453,21 @@ try
         Check(flaky.Last != perdido && flaky.Last!.Blits > 0, "el panel nuevo recibe su fotograma completo");
         Check(flaky.Last!.Brightness is [20], "y vuelve al brillo de la configuración, no al de fábrica");
 
+        // Vuelve de suspensión, o de un «Apagar» con el inicio rápido de Windows: el puerto no falla,
+        // pero el panel se ha quedado sin corriente y está en vertical y en blanco.
+        var dormido = flaky.Last!;
+        int abiertos = flaky.Opens;
+        host.PanelMayHaveReset();
+
+        Check(await WaitUntil(() => host.GetStatus().Reconnects == 2 && host.GetStatus().State == ServiceState.Painting,
+                TimeSpan.FromSeconds(10)),
+            "al volver de suspensión reabre el panel aunque el puerto no haya fallado");
+        Check(dormido.Disposed, "cierra el que tenía antes de reabrirlo");
+        Check(flaky.Opens == abiertos + 1, "y lo abre una sola vez");
+        Check(esperas[^1] == PanelHost.ResumeSettle, "después de dejarle arrancar");
+        Check(flaky.Last!.Blits > 0, "el panel despertado recibe su fotograma completo");
+        Check(flaky.Last!.Brightness is [20], "y el brillo de la configuración");
+
         await cts.CancelAsync();
         await running;
         Check(host.GetStatus().State == ServiceState.Stopping, "al parar deja de pintar");

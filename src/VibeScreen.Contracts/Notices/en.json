@@ -86,6 +86,7 @@
   "panel.not-found.port-hint": "No compatible panel was found. Use --port to name it by hand.",
   "panel.port-busy": "The port {0} is busy or there's no permission. Is the program that drove the screen still open? On Linux the device must be accessible: a udev rule with TAG+=\"uaccess\" or being in the dialout group.",
   "panel.port-closed": "The port isn't open.",
+  "panel.resumed": "The computer is back from being off or asleep: the panel repaints in {0} s.",
   "panel.retry": "{1} Next attempt in {0} s.",
   "panel.screen-off": "Screen off.",
   "panel.timeout.flush": "The panel {0} didn't answer within {1} s when flushing its buffer.",

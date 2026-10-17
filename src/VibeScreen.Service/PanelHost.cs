@@ -38,9 +38,21 @@ public sealed class PanelHost : IAsyncDisposable
     private int _sensorCount;
     private int _reconnects;
     private bool _connected;
+    private int _stateLost;
 
     /// <summary>Cuánto mira atrás el medidor de caudal. Bastante para que no parpadee y poco para que reaccione.</summary>
     public static readonly TimeSpan RateWindowLength = TimeSpan.FromSeconds(5);
+
+    /// <summary>
+    /// Cuánto se le deja arrancar al panel cuando el sistema vuelve de suspensión, antes de abrirlo.
+    /// </summary>
+    /// <remarks>
+    /// El panel vuelve de quedarse sin corriente iniciando su pantalla, y una orientación que llegue
+    /// mientras tanto la pisa el propio firmware. La implementación de referencia espera 5 s tras un
+    /// RESET, que además incluye volver a aparecer en el USB; aquí el puerto ya suele estar, y cada
+    /// segundo de espera es un segundo de pantalla en blanco.
+    /// </remarks>
+    public static readonly TimeSpan ResumeSettle = TimeSpan.FromSeconds(3);
 
     public PanelHost(IConfigStore store, ISensorProvider sensors, IPanelConnector connector, ILogger<PanelHost> logger)
     {
@@ -88,6 +100,17 @@ public sealed class PanelHost : IAsyncDisposable
                 await ConnectAsync(cancellationToken).ConfigureAwait(false);
                 attempt = 0;
                 await PaintAsync(cancellationToken).ConfigureAwait(false);
+
+                // Pintar solo vuelve sin fallo cuando el panel ha podido perder su estado. Se cierra,
+                // se le deja arrancar, y la siguiente vuelta lo abre y lo inicializa desde cero.
+                _reconnects++;
+                _connected = false;
+                SetState(ServiceState.Searching, Notice.Of("panel.resumed", Math.Round(ResumeSettle.TotalSeconds)));
+                _logger.LogInformation("El sistema vuelve de suspensión: se reabre el panel en {Segundos} s.",
+                    ResumeSettle.TotalSeconds);
+
+                await CloseAsync().ConfigureAwait(false);
+                await Delay(ResumeSettle, cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -136,6 +159,25 @@ public sealed class PanelHost : IAsyncDisposable
         SetState(ServiceState.Stopping, null);
         await CloseAsync().ConfigureAwait(false);
     }
+
+    /// <summary>
+    /// Avisa de que el panel ha podido volver a su estado de fábrica sin que el puerto se entere: lo
+    /// que pasa al volver de suspensión, de hibernación o de un «Apagar» con el inicio rápido de Windows.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// En los tres el proceso sigue vivo, pero el panel se queda sin corriente y vuelve en vertical y
+    /// en blanco. El puerto, en cambio, no falla: Windows reaprovecha el mismo dispositivo al reanudar.
+    /// Así que el bucle seguía mandando solo lo que cambiaba, con coordenadas apaisadas, a un panel en
+    /// vertical, y salían franjas giradas sobre fondo blanco hasta que alguien reiniciaba el servicio.
+    /// La revisión A no contesta a nada, así que el aviso tiene que venir del sistema.
+    /// </para>
+    /// <para>
+    /// Sin cerrojo y desde cualquier hilo: solo levanta una marca, que el bucle de pintado recoge en
+    /// el siguiente ciclo. Avisar dos veces es lo mismo que avisar una.
+    /// </para>
+    /// </remarks>
+    public void PanelMayHaveReset() => Volatile.Write(ref _stateLost, 1);
 
     /// <summary>
     /// El estado se lee sin cerrojo a propósito: son campos sueltos y el peor caso es una lectura de
@@ -517,11 +559,20 @@ public sealed class PanelHost : IAsyncDisposable
         }
     }
 
+    /// <summary>Pinta hasta que paren el servicio, hasta que el panel falle o hasta que haya perdido su estado.</summary>
+    /// <remarks>
+    /// La marca no se borra al conectar, y es a propósito. Al reanudar, una escritura puede fallar antes
+    /// de que llegue el aviso; si el aviso llega durante esa espera corta y conectar lo borrara, el
+    /// panel se abriría en pleno arranque y la orientación se perdería otra vez. Así, el peor caso es
+    /// reabrirlo una vez de más.
+    /// </remarks>
     private async Task PaintAsync(CancellationToken cancellationToken)
     {
         using var timer = new PeriodicTimer(LayoutRunner.Tick);
         while (await timer.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false))
         {
+            if (Interlocked.Exchange(ref _stateLost, 0) == 1) return;
+
             await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {

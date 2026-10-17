@@ -86,6 +86,7 @@
   "panel.not-found.port-hint": "No se ha encontrado ningún panel compatible. Usa --port para indicarlo a mano.",
   "panel.port-busy": "El puerto {0} está ocupado o no hay permisos. ¿Sigue abierto el programa que controlaba la pantalla? En Linux hace falta acceso al dispositivo: regla udev con TAG+=\"uaccess\" o pertenecer al grupo dialout.",
   "panel.port-closed": "El puerto no está abierto.",
+  "panel.resumed": "El equipo vuelve de estar apagado o en suspensión: el panel se repinta en {0} s.",
   "panel.retry": "{1} Siguiente intento en {0} s.",
   "panel.screen-off": "Pantalla apagada.",
   "panel.timeout.flush": "El panel {0} no ha respondido en {1} s al vaciar su búfer.",
