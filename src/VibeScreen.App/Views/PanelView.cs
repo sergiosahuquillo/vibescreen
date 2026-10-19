@@ -765,13 +765,18 @@ public sealed class PanelView : UserControl, IDisposable
             },
         };
 
-        var row = new StackPanel
+        // Una rejilla y no un StackPanel horizontal: ese mide a sus hijos con ancho infinito, el texto
+        // nunca encuentra dónde partir y se sale de la tarjeta. La columna * le da lo que sobra.
+        var icon = Icons.Make(Icons.Alert, Palette.WarnBrush, 18);
+        icon.VerticalAlignment = VerticalAlignment.Top;
+        Grid.SetColumn(body, 1);
+
+        var row = new Grid
         {
-            Orientation = Orientation.Horizontal,
-            Spacing = 10,
-            Children = { Icons.Make(Icons.Alert, Palette.WarnBrush, 18), body },
+            ColumnDefinitions = new ColumnDefinitions("Auto,*"),
+            ColumnSpacing = 10,
+            Children = { icon, body },
         };
-        row.Children[0].VerticalAlignment = VerticalAlignment.Top;
 
         return new Border
         {
