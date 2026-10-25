@@ -114,6 +114,7 @@ public sealed record ImageBackground : LayoutBackground
 [JsonDerivedType(typeof(BarWidget), "bar")]
 [JsonDerivedType(typeof(GaugeWidget), "gauge")]
 [JsonDerivedType(typeof(ChartWidget), "chart")]
+[JsonDerivedType(typeof(ImageWidget), "image")]
 public abstract record LayoutWidget
 {
     public required string Id { get; set; }
@@ -275,6 +276,27 @@ public sealed record ClockWidget : LabelWidget
 {
     /// <summary>Patrón de <see cref="ClockFormat"/>, como <c>HH:mm</c> o <c>d 'de' MMMM</c>.</summary>
     public string Format { get; set; } = ClockFormat.Default;
+}
+
+/// <summary>Una imagen fija, o una animada como un GIF.</summary>
+/// <remarks>
+/// <para>
+/// Lo que gasta enlace no es cuántos fotogramas tiene sino cuántos se envían por segundo, y cada uno
+/// cuesta la caja entera. Una fija se envía una vez y ya está. Una animada va a la velocidad que
+/// marca el propio fichero, y el refresco del widget dice cada cuánto se mira qué fotograma toca: con
+/// uno más lento se saltan fotogramas, pero la animación no se ralentiza.
+/// </para>
+/// <para>
+/// Como el fondo, la ruta puede ser relativa a la carpeta del tema, y al guardar la imagen se copia
+/// dentro, en <see cref="LayoutLoader.ImagesFolder"/>.
+/// </para>
+/// </remarks>
+public sealed record ImageWidget : LayoutWidget
+{
+    public required string Path { get; set; }
+
+    [JsonConverter(typeof(StrictEnumJsonConverter<ImageFit>))]
+    public ImageFit Fit { get; set; } = ImageFit.Contain;
 }
 
 /// <summary>

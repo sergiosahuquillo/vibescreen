@@ -393,6 +393,172 @@ catch (Exception e)
     Broke("Fondos", e);
 }
 
+Header("Imágenes en widgets");
+try
+{
+
+    string bench = Path.Combine(Path.GetTempPath(), $"vibescreen-imagenes-{Environment.ProcessId}");
+    string downloads = Path.Combine(bench, "descargas");
+    Directory.CreateDirectory(downloads);
+
+    // Un GIF de 4x4 con tres fotogramas lisos, rojo, verde y azul, de 200 ms cada uno: 600 ms la vuelta.
+    string gif = Path.Combine(downloads, "anim.gif");
+    File.WriteAllBytes(gif, Gif(4, 20, SKColors.Red, SKColors.Lime, SKColors.Blue));
+
+    string png = Path.Combine(downloads, "quieta.png");
+    using (var still = new SKBitmap(new SKImageInfo(4, 4, SKColorType.Bgra8888, SKAlphaType.Premul)))
+    {
+        still.Erase(SKColors.Yellow);
+        using var encoded = SKImage.FromBitmap(still).Encode(SKEncodedImageFormat.Png, 100);
+        File.WriteAllBytes(png, encoded.ToArray());
+    }
+
+    string broken = Path.Combine(downloads, "rota.gif");
+    File.WriteAllBytes(broken, [1, 2, 3, 4]);
+
+    string Picture(string id, string path, int x, string extra = "") =>
+        $$"""{ "type": "image", "id": "{{id}}", "rect": [{{x}}, 10, 40, 40], "refreshMs": 100, "path": {{JsonEscape(path)}}{{extra}} }""";
+
+    var read = LayoutLoader.Parse(Minimal(Picture("gif", gif, 10)));
+    Check(read.Widgets[0] is ImageWidget { Fit: ImageFit.Contain } image0 && image0.Path == gif,
+          "una imagen se lee, encajada si no dice otra cosa");
+    Check(read.Widgets[0].SensorId is null, "y no depende de ningún sensor");
+    Check(LayoutLoader.Copy(read.Widgets[0]) is ImageWidget copied && copied.Path == gif && !ReferenceEquals(copied, read.Widgets[0]),
+          "se copia como cualquier otro widget");
+    Check(Rejects(Minimal(Picture("vacia", "", 10)), "ruta"), "una imagen sin ruta se rechaza");
+    Check(Rejects(Minimal(Picture("mal", gif, 10, """, "fit": "encajar" """)), "cover"), "y un ajuste que no existe también");
+
+    var animated = WidgetImages.Probe(gif);
+    Check(animated is { Animated: true, Frames: 3, ShortestMs: 200, Width: 4, Height: 4 },
+          $"un GIF dice sus fotogramas y lo que duran ({animated})");
+    Check(animated is { } a && Near(a.FramesPerSecond, 5), "y de ahí, a cuántos por segundo va");
+    Check(WidgetImages.Probe(png) is { Animated: false, Frames: 1 }, "un PNG es una sola imagen");
+    Check(WidgetImages.Probe(broken) is null, "un fichero que no es una imagen no se puede mirar");
+    Check(WidgetImages.Duration(0) == 100 && WidgetImages.Duration(10) == 100 && WidgetImages.Duration(20) == 20,
+          "un GIF que no dice cuánto dura va a 100 ms, como en los navegadores");
+
+    // El fotograma sale del reloj: a los 600 000 ms empieza una vuelta.
+    var clock = new FakeClock(DateTimeOffset.FromUnixTimeMilliseconds(600_000));
+    var both = LayoutLoader.Parse(Minimal(Picture("gif", gif, 10) + "," + Picture("png", png, 100)));
+    using (var renderer = new LayoutRenderer(both, clock))
+    {
+        var sensors = new FakeSensors();
+        renderer.RenderAll(sensors, TimeSpan.Zero);
+        Check(renderer.Surface.Bitmap.GetPixel(30, 30) == SKColors.Red, "al empezar la vuelta se ve el primer fotograma");
+        Check(renderer.Surface.Bitmap.GetPixel(120, 30) == SKColors.Yellow, "y la imagen fija, ampliada a su caja");
+        Check(renderer.Surface.Bitmap.GetPixel(10, 10) == SKColors.Red && renderer.Surface.Bitmap.GetPixel(49, 49) == SKColors.Red,
+              "ampliada sin suavizar, hasta el borde de la caja");
+
+        clock.Now = clock.Now.AddMilliseconds(200);
+        var dirty = renderer.Update(sensors, TimeSpan.FromMilliseconds(200));
+        Check(dirty.Count == 1 && dirty[0].WidgetId == "gif", "al pasar un fotograma, solo se envía la caja del GIF");
+        Check(renderer.Surface.Bitmap.GetPixel(30, 30) == SKColors.Lime, "y se ve el segundo");
+
+        clock.Now = clock.Now.AddMilliseconds(50);
+        Check(renderer.Update(sensors, TimeSpan.FromMilliseconds(400)).Count == 0, "a mitad de fotograma no hay nada que enviar");
+
+        // Mirarlo más despacio salta fotogramas, no ralentiza la animación.
+        clock.Now = clock.Now.AddMilliseconds(350);
+        renderer.Update(sensors, TimeSpan.FromMilliseconds(600));
+        Check(renderer.Surface.Bitmap.GetPixel(30, 30) == SKColors.Red, "si se mira tarde, va por donde le toca y no por el siguiente");
+
+        clock.Now = clock.Now.AddMilliseconds(400);
+        renderer.Update(sensors, TimeSpan.FromMilliseconds(800));
+        Check(renderer.Surface.Bitmap.GetPixel(30, 30) == SKColors.Blue, "y la vuelta sigue");
+    }
+
+    using (var rebuilt = new LayoutRenderer(both, new FakeClock(DateTimeOffset.FromUnixTimeMilliseconds(600_250))))
+    {
+        rebuilt.RenderAll(new FakeSensors(), TimeSpan.Zero);
+        Check(rebuilt.Surface.Bitmap.GetPixel(30, 30) == SKColors.Lime,
+              "un renderizador recién hecho sigue la animación por donde iba, no vuelve a empezar");
+    }
+
+    var cost = LayoutInspector.Consumers(both).ToDictionary(c => c.WidgetId);
+    Check(Near(cost["gif"].RefreshHz, 5), $"un GIF gasta lo que su ritmo, aunque se mire más a menudo ({cost["gif"].RefreshHz})");
+    Check(cost["png"].RefreshHz == 0, "una imagen fija no gasta enlace: se envía una vez y ya");
+    var slow = LayoutLoader.Parse(Minimal(Picture("gif", gif, 10).Replace("\"refreshMs\": 100", "\"refreshMs\": 500")));
+    Check(Near(LayoutInspector.Consumers(slow)[0].RefreshHz, 2), "y mirado más despacio, lo que se mire");
+
+    var missingPicture = LayoutLoader.Parse(Minimal(Picture("falta", Path.Combine(downloads, "no-esta.gif"), 10) + "," + Picture("rota", broken, 100)));
+    var pictureWarnings = LayoutInspector.Warnings(missingPicture, new FakeSensors());
+    Check(pictureWarnings.Any(w => w.Code == "layout.warn.image-missing" && w.Args.Contains("falta")), "una imagen que falta avisa");
+    Check(pictureWarnings.Any(w => w.Code == "layout.warn.image-unreadable" && w.Args.Contains("rota")), "y una que no se puede leer, también");
+    using (var renderer = new LayoutRenderer(missingPicture))
+    {
+        renderer.RenderAll(new FakeSensors(), TimeSpan.Zero);
+        Check(renderer.Surface.Bitmap.GetPixel(30, 30) == background, "y en su lugar se ve el fondo del tema, sin romper nada");
+    }
+
+    // Guardar las trae a la carpeta del tema, como el fondo.
+    var doc = new LayoutDocument
+    {
+        Schema = LayoutLoader.CurrentSchema,
+        Display = new LayoutDisplay { Width = 480, Height = 320, Orientation = Orientation.Landscape },
+        Widgets =
+        [
+            new ImageWidget { Id = "a", Rect = new PixelRect(10, 10, 40, 40), Path = gif },
+            new ImageWidget { Id = "b", Rect = new PixelRect(60, 10, 40, 40), Path = gif },
+            new ImageWidget { Id = "c", Rect = new PixelRect(110, 10, 40, 40), Path = png },
+        ],
+    };
+
+    string saved = Path.Combine(bench, "tema", "tema.json");
+    string images = Path.Combine(bench, "tema", LayoutLoader.ImagesFolder);
+    LayoutLoader.Save(doc, saved);
+    var pictures = doc.Widgets.Cast<ImageWidget>().ToList();
+    Check(pictures[0].Path == "imagenes/anim.gif" && pictures[2].Path == "imagenes/quieta.png",
+          $"al guardar, cada imagen queda nombrada dentro del tema ({pictures[0].Path})");
+    Check(pictures[1].Path == pictures[0].Path && Directory.GetFiles(images).Length == 2,
+          "dos widgets con la misma imagen comparten copia");
+
+    File.Delete(gif);
+    var back = LayoutLoader.Load(saved);
+    Check(back.Widgets.Cast<ImageWidget>().All(w => File.Exists(back.Resolve(w.Path))), "y borrar las originales no deja al tema sin ellas");
+    Check(LayoutInspector.Warnings(back, new FakeSensors()).Count == 0, "ni saca ningún aviso");
+
+    LayoutLoader.Save(back, saved);
+    Check(back.Widgets.Cast<ImageWidget>().First().Path == "imagenes/anim.gif" && Directory.GetFiles(images).Length == 2,
+          "guardar otra vez sin tocar nada no copia ni renombra");
+
+    // Otra imagen distinta que se llama igual no pisa la que ya está.
+    string other = Path.Combine(downloads, "otra", "anim.gif");
+    Directory.CreateDirectory(Path.GetDirectoryName(other)!);
+    File.WriteAllBytes(other, Gif(4, 20, SKColors.White, SKColors.Black));
+    ((ImageWidget)back.Widgets[1]).Path = other;
+    LayoutLoader.Save(back, saved);
+    Check(((ImageWidget)back.Widgets[1]).Path == "imagenes/anim-2.gif" && ((ImageWidget)back.Widgets[0]).Path == "imagenes/anim.gif",
+          "una imagen distinta con el mismo nombre se guarda aparte");
+
+    // Lo que ya no usa nadie se va, y nada más.
+    back.Widgets = [back.Widgets[1]];
+    LayoutLoader.Save(back, saved);
+    Check(Directory.GetFiles(images).Select(Path.GetFileName).SequenceEqual(["anim-2.gif"]),
+          "quitar widgets se lleva sus imágenes de la carpeta del tema");
+
+    // Y si no llega a escribir, el tema se queda como estaba.
+    string blocked = Path.Combine(bench, "bloqueado");
+    Directory.CreateDirectory(Path.Combine(blocked, "tema.json"));
+    var unsaved = new LayoutDocument
+    {
+        Schema = LayoutLoader.CurrentSchema,
+        Display = new LayoutDisplay { Width = 480, Height = 320, Orientation = Orientation.Landscape },
+        Widgets = [new ImageWidget { Id = "a", Rect = new PixelRect(10, 10, 40, 40), Path = png }],
+    };
+    bool refused = false;
+    try { LayoutLoader.Save(unsaved, Path.Combine(blocked, "tema.json")); }
+    catch (LayoutException) { refused = true; }
+    Check(refused && ((ImageWidget)unsaved.Widgets[0]).Path == png,
+          "un guardado que falla deja las rutas de las imágenes como estaban");
+
+    try { Directory.Delete(bench, recursive: true); }
+    catch (IOException) { }
+}
+catch (Exception e)
+{
+    Broke("Imágenes en widgets", e);
+}
+
 Header("Textos");
 try
 {
@@ -1716,6 +1882,84 @@ static bool Throws<T>(Action action) where T : Exception
 }
 
 static string JsonEscape(string value) => System.Text.Json.JsonSerializer.Serialize(value);
+
+/// <summary>
+/// Un GIF animado de colores lisos, escrito a mano porque Skia los lee pero no los escribe.
+/// </summary>
+/// <remarks>
+/// Sin comprimir de verdad: antes de cada píxel va un código de borrado, así la tabla de LZW no crece
+/// nunca y todos los códigos miden tres bits. Es un GIF válido, solo que más grande de lo necesario.
+/// </remarks>
+static byte[] Gif(int size, int delayCs, params SKColor[] frames)
+{
+    var bytes = new List<byte>();
+    void Word(int value)
+    {
+        bytes.Add((byte)value);
+        bytes.Add((byte)(value >> 8));
+    }
+
+    bytes.AddRange("GIF89a"u8.ToArray());
+    Word(size);
+    Word(size);
+    bytes.AddRange([0x91, 0, 0]); // Paleta global de cuatro colores.
+    for (int i = 0; i < 4; i++)
+    {
+        var color = i < frames.Length ? frames[i] : SKColors.Black;
+        bytes.AddRange([color.Red, color.Green, color.Blue]);
+    }
+
+    bytes.AddRange([0x21, 0xFF, 0x0B, .. "NETSCAPE2.0"u8.ToArray(), 0x03, 0x01, 0x00, 0x00, 0x00]);
+
+    for (int frame = 0; frame < frames.Length; frame++)
+    {
+        bytes.AddRange([0x21, 0xF9, 0x04, 0x04]);
+        Word(delayCs);
+        bytes.AddRange([0x00, 0x00]);
+
+        bytes.Add(0x2C);
+        Word(0);
+        Word(0);
+        Word(size);
+        Word(size);
+        bytes.Add(0x00);
+
+        const int Clear = 4, End = 5;
+        var data = new List<byte>();
+        int buffer = 0, bits = 0;
+        void Code(int code)
+        {
+            buffer |= code << bits;
+            bits += 3;
+            while (bits >= 8)
+            {
+                data.Add((byte)buffer);
+                buffer >>= 8;
+                bits -= 8;
+            }
+        }
+
+        for (int pixel = 0; pixel < size * size; pixel++)
+        {
+            Code(Clear);
+            Code(frame);
+        }
+        Code(End);
+        if (bits > 0) data.Add((byte)buffer);
+
+        bytes.Add(0x02);
+        for (int at = 0; at < data.Count; at += 255)
+        {
+            int length = Math.Min(255, data.Count - at);
+            bytes.Add((byte)length);
+            bytes.AddRange(data.GetRange(at, length));
+        }
+        bytes.Add(0x00);
+    }
+
+    bytes.Add(0x3B);
+    return [.. bytes];
+}
 
 
 /// <summary>Un panel que acepta el puerto y luego no contesta nunca. Ni falla: se queda callado.</summary>

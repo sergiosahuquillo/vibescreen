@@ -155,6 +155,10 @@ public static class LayoutLoader
     /// carpeta entera se copia a otra máquina y funciona igual.
     /// </para>
     /// <para>
+    /// Las imágenes de los widgets, igual, pero a <see cref="ImagesFolder"/> y con su nombre: puede
+    /// haber varias. Lo que quede allí sin que ningún widget lo nombre se borra, ya con el JSON escrito.
+    /// </para>
+    /// <para>
     /// Primero se valida, después se toca el disco: así un layout que no se puede guardar no deja
     /// una copia de la imagen ni un documento a medio cambiar. El JSON se escribe entero o no se
     /// escribe, con <see cref="AtomicFile"/>.
@@ -187,19 +191,24 @@ public static class LayoutLoader
         string? original = (layout.Background as ImageBackground)?.Path;
         if (layout.Background is ImageBackground image) image.Path = BringIn(image.Path, layout, folder);
 
+        var pictures = layout.Widgets.OfType<ImageWidget>().Select(w => (Widget: w, Before: w.Path)).ToList();
+
         try
         {
+            BringInImages(layout, folder);
             AtomicFile.WriteAllText(full, Serialize(layout));
         }
         catch (Exception e)
         {
             if (original is not null && layout.Background is ImageBackground failed) failed.Path = original;
+            foreach (var (widget, before) in pictures) widget.Path = before;
             throw e is LayoutException
                 ? e
                 : new LayoutException(full, [Notice.Of("layout.cannot-save", e.Message)], e);
         }
 
         layout.Directory = folder;
+        ForgetOldImages(layout, folder);
     }
 
     /// <summary>
@@ -264,6 +273,115 @@ public static class LayoutLoader
         }
 
         return Path.GetFileName(target);
+    }
+
+    /// <summary>Subcarpeta del tema donde se copian las imágenes de los widgets.</summary>
+    /// <remarks>
+    /// Aparte del fondo porque son varias y conservan su nombre, y así limpiar lo que ya no se usa
+    /// es mirar una carpeta que solo escribe esto, sin riesgo de llevarse nada más.
+    /// </remarks>
+    public const string ImagesFolder = "imagenes";
+
+    /// <summary>
+    /// Trae cada imagen de widget a <see cref="ImagesFolder"/> y deja su ruta relativa al tema.
+    /// </summary>
+    /// <remarks>
+    /// Si ya hay allí otra distinta con el mismo nombre, la nueva se queda con «nombre-2», y así
+    /// cambiar la imagen de un widget no pisa la de otro. Si la original ya no está pero dentro hay
+    /// una copia, vale la copia, como con el fondo.
+    /// </remarks>
+    private static void BringInImages(LayoutDocument layout, string folder)
+    {
+        string images = Path.Combine(folder, ImagesFolder);
+
+        // Qué fichero de dentro se ha quedado cada original en este guardado: dos widgets con la misma
+        // imagen comparten copia, y dos imágenes distintas con el mismo nombre no.
+        var taken = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var widget in layout.Widgets.OfType<ImageWidget>())
+        {
+            if (string.IsNullOrWhiteSpace(widget.Path)) continue;
+
+            string source = Path.GetFullPath(layout.Resolve(widget.Path));
+            try
+            {
+                widget.Path = BringInImage(source, widget.Path, images, taken);
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                throw new LayoutException(folder, [Notice.Of("layout.cannot-copy-image", widget.Path, e.Message)], e);
+            }
+        }
+    }
+
+    private static string BringInImage(string source, string path, string images, Dictionary<string, string> taken)
+    {
+        string name = Path.GetFileName(source);
+
+        // Ya está dentro: de un guardado anterior en esta misma carpeta.
+        if (string.Equals(Path.GetDirectoryName(source), Path.TrimEndingDirectorySeparator(images), StringComparison.OrdinalIgnoreCase))
+        {
+            taken.TryAdd(source, source);
+            return Relative(name);
+        }
+
+        if (!File.Exists(source))
+            return File.Exists(Path.Combine(images, name)) ? Relative(name) : path;
+
+        string stem = Path.GetFileNameWithoutExtension(name);
+        string extension = Path.GetExtension(name);
+        for (int n = 1; ; n++)
+        {
+            string candidate = n == 1 ? name : $"{stem}-{n}{extension}";
+            string target = Path.Combine(images, candidate);
+
+            if (taken.TryGetValue(target, out string? owner))
+            {
+                if (string.Equals(owner, source, StringComparison.OrdinalIgnoreCase)) return Relative(candidate);
+                continue;
+            }
+
+            // Uno de un guardado anterior: si es la misma imagen se aprovecha, y si es otra no se pisa
+            // todavía, que puede ser la de otro widget que viene detrás en la lista.
+            if (File.Exists(target) && !SameContent(source, target)) continue;
+
+            Directory.CreateDirectory(images);
+            if (!File.Exists(target)) File.Copy(source, target);
+            taken[target] = source;
+            return Relative(candidate);
+        }
+    }
+
+    /// <summary>La ruta con la que el tema nombra una imagen de dentro. Con «/», que vale en los dos sistemas.</summary>
+    private static string Relative(string name) => ImagesFolder + "/" + name;
+
+    private static bool SameContent(string a, string b) =>
+        new FileInfo(a).Length == new FileInfo(b).Length && File.ReadAllBytes(a).AsSpan().SequenceEqual(File.ReadAllBytes(b));
+
+    /// <summary>
+    /// Borra de <see cref="ImagesFolder"/> lo que ya no nombra ningún widget. Con el JSON ya escrito:
+    /// antes, un guardado que fallara dejaría al fichero viejo nombrando imágenes borradas.
+    /// </summary>
+    private static void ForgetOldImages(LayoutDocument layout, string folder)
+    {
+        string images = Path.Combine(folder, ImagesFolder);
+        if (!Directory.Exists(images)) return;
+
+        var used = layout.Widgets.OfType<ImageWidget>()
+            .Select(w => Path.GetFullPath(layout.Resolve(w.Path)))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        try
+        {
+            foreach (string file in Directory.EnumerateFiles(images))
+                if (!used.Contains(Path.GetFullPath(file))) File.Delete(file);
+
+            if (!Directory.EnumerateFileSystemEntries(images).Any()) Directory.Delete(images);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            // Queda alguna imagen de sobra en la carpeta. No estorba a nadie.
+        }
     }
 
     /// <summary>Las imágenes que dejó un fondo anterior de otro formato. Solo las que puso esto.</summary>
@@ -360,6 +478,9 @@ public static class LayoutLoader
                     break;
                 case GraphWidget graph:
                     ValidateGraph(graph, label, problems);
+                    break;
+                case ImageWidget image when string.IsNullOrWhiteSpace(image.Path):
+                    problems.Add(Notice.Of("layout.image.no-path").With(label));
                     break;
             }
         }

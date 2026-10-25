@@ -201,6 +201,7 @@ public sealed class LayoutRenderer : IDisposable
                     BarWidget bar => new BarState(bar),
                     GaugeWidget gauge => new GaugeState(gauge),
                     ChartWidget chart => new ChartState(chart),
+                    ImageWidget image => new ImageState(image, layout),
                     _ => throw new NotSupportedException($"Widget «{widget.Id}»: tipo sin renderizador."),
                 });
         }
@@ -795,6 +796,111 @@ public sealed class LayoutRenderer : IDisposable
         public override void Dispose()
         {
             _pen?.Dispose();
+            base.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Una imagen, fija o animada. Los fotogramas se escalan a la caja una vez, al montar el
+    /// renderizador, y a partir de ahí cada repintado es copiarlos.
+    /// </summary>
+    private sealed class ImageState : WidgetState
+    {
+        private readonly SKImage[] _frames;
+
+        /// <summary>Cuándo empieza cada fotograma dentro de una vuelta de la animación, en milisegundos.</summary>
+        private readonly long[] _starts;
+
+        private readonly long _loop;
+        private int _shown = -1;
+
+        public ImageState(ImageWidget widget, LayoutDocument layout) : base(widget)
+        {
+            var frames = new List<SKImage>();
+            var starts = new List<long>();
+            long loop = 0;
+
+            try
+            {
+                WidgetImages.Use(layout.Resolve(widget.Path), source =>
+                {
+                    var rect = widget.Rect;
+
+                    // Los fotogramas escalados son de este widget y no de la caché, así que también
+                    // cuentan: una imagen pequeña estirada a todo el panel ocupa lo que el panel.
+                    if ((long)rect.Width * rect.Height * 4 * source.Bitmaps.Count > WidgetImages.MaxBytes) return;
+
+                    var first = source.Bitmaps[0];
+                    var target = Placement(widget.Fit, first.Width, first.Height, rect.Width, rect.Height);
+
+                    // Lo que se amplía al doble o más casi siempre es un icono o pixel art, y suavizado
+                    // se vuelve borroso. Lo que se reduce, en cambio, necesita el filtro para no dentar.
+                    var sampling = target.Width >= first.Width * 2 && target.Height >= first.Height * 2
+                        ? new SKSamplingOptions(SKFilterMode.Nearest, SKMipmapMode.None)
+                        : new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear);
+
+                    var info = new SKImageInfo(rect.Width, rect.Height, SKColorType.Bgra8888, SKAlphaType.Premul);
+                    for (int i = 0; i < source.Bitmaps.Count; i++)
+                    {
+                        using var surface = SKSurface.Create(info);
+                        surface.Canvas.Clear(SKColors.Transparent);
+
+                        // Sin copiar los píxeles: la imagen vive lo que dura este dibujo, dentro del candado.
+                        using (var pixels = source.Bitmaps[i].PeekPixels())
+                        using (var image = SKImage.FromPixels(pixels))
+                            surface.Canvas.DrawImage(image, target, sampling);
+
+                        frames.Add(surface.Snapshot());
+                        starts.Add(loop);
+                        loop += source.Durations[i];
+                    }
+                });
+            }
+            catch
+            {
+                foreach (var frame in frames) frame.Dispose();
+                throw;
+            }
+
+            _frames = [.. frames];
+            _starts = [.. starts];
+            _loop = loop;
+        }
+
+        protected override bool Update(SensorReading? reading, DateTimeOffset time)
+        {
+            int frame = _frames.Length > 1 && _loop > 0 ? FrameAt(time) : 0;
+            if (frame == _shown) return false;
+
+            _shown = frame;
+            return true;
+        }
+
+        /// <summary>
+        /// El fotograma que toca a esa hora.
+        /// </summary>
+        /// <remarks>
+        /// Sale del reloj y no de contar refrescos, y por eso la animación va a su velocidad aunque el
+        /// widget se mire más despacio: se salta fotogramas, no se ralentiza. Y contado desde una fecha
+        /// fija y no desde que se montó el renderizador, para que no vuelva a empezar cada vez que el
+        /// editor lo rehace —con cada tecla— y para que la vista previa vaya a la par que el panel.
+        /// </remarks>
+        private int FrameAt(DateTimeOffset time)
+        {
+            long at = ((time.ToUnixTimeMilliseconds() % _loop) + _loop) % _loop;
+            int frame = 0;
+            while (frame + 1 < _starts.Length && _starts[frame + 1] <= at) frame++;
+            return frame;
+        }
+
+        public override void Draw(SKCanvas canvas, SKRect box)
+        {
+            if (_shown >= 0 && _shown < _frames.Length) canvas.DrawImage(_frames[_shown], box.Left, box.Top);
+        }
+
+        public override void Dispose()
+        {
+            foreach (var frame in _frames) frame.Dispose();
             base.Dispose();
         }
     }

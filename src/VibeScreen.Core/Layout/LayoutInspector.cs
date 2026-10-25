@@ -1,4 +1,5 @@
 using VibeScreen.Contracts;
+using VibeScreen.Core.Rendering;
 using VibeScreen.Core.Sensors;
 using VibeScreen.Protocol.Display;
 using VibeScreen.Protocol.Rendering;
@@ -30,8 +31,13 @@ public static class LayoutInspector
     /// vive en una unidad de red caída congela la ventana letra a letra: quien llama tan a menudo
     /// pasa una versión que recuerda la respuesta.
     /// </param>
+    /// <param name="probe">
+    /// Cómo se mira una imagen de widget. Por omisión, <see cref="WidgetImages.Probe"/>, que ya
+    /// recuerda lo que leyó mientras el fichero no cambie.
+    /// </param>
     public static IReadOnlyList<Notice> Warnings(
-        LayoutDocument layout, ISensorProvider sensors, Func<string, bool>? exists = null)
+        LayoutDocument layout, ISensorProvider sensors, Func<string, bool>? exists = null,
+        Func<string, ImageProbe?>? probe = null)
     {
         ArgumentNullException.ThrowIfNull(layout);
         ArgumentNullException.ThrowIfNull(sensors);
@@ -43,6 +49,18 @@ public static class LayoutInspector
 
         if (layout.Background is ImageBackground image && !exists(layout.Resolve(image.Path)))
             warnings.Add(Notice.Of("layout.warn.background-missing", image.Path));
+
+        // A diferencia del fondo, una imagen que no se puede leer no deja nada en su lugar: el
+        // widget se queda en blanco, así que también se avisa.
+        probe ??= WidgetImages.Probe;
+        foreach (var picture in layout.Widgets.OfType<ImageWidget>())
+        {
+            string path = layout.Resolve(picture.Path);
+            if (!exists(path))
+                warnings.Add(Notice.Of("layout.warn.image-missing", picture.Path, picture.Id));
+            else if (probe(path) is null)
+                warnings.Add(Notice.Of("layout.warn.image-unreadable", picture.Path, picture.Id, WidgetImages.MaxFrames, WidgetImages.MaxMegabytes));
+        }
 
         // Un widget que se sale no impide editar, pero sí guardar: Validate lo rechaza. Sin avisarlo
         // aquí, cambiar el tamaño del panel deja el tema imposible de guardar y no se descubre hasta
@@ -89,13 +107,15 @@ public static class LayoutInspector
     /// Lo que cuesta cada widget en el peor caso: su caja entera en cada refresco. Es la cota alta,
     /// porque un widget que no cambia no se envía, y es la que sirve para avisar de que un tema no cabe.
     /// </summary>
-    public static IReadOnlyList<WidgetBandwidth> Consumers(LayoutDocument layout)
+    /// <param name="probe">Cómo se mira una imagen de widget, como en <see cref="Warnings"/>.</param>
+    public static IReadOnlyList<WidgetBandwidth> Consumers(LayoutDocument layout, Func<string, ImageProbe?>? probe = null)
     {
         ArgumentNullException.ThrowIfNull(layout);
+        probe ??= WidgetImages.Probe;
 
         return layout.Widgets
             .Where(w => w is not null)
-            .Select(w => new WidgetBandwidth(w.Id, w.Rect, RefreshHz(w)))
+            .Select(w => new WidgetBandwidth(w.Id, w.Rect, RefreshHz(w, layout, probe)))
             .ToList();
     }
 
@@ -115,17 +135,23 @@ public static class LayoutInspector
     /// <remarks>
     /// Normalmente es su refresco, porque un sensor puede dar un valor distinto cada vez que se lee.
     /// El reloj no: un «HH:mm» mirado cada segundo no cambia más de una vez por minuto, y cobrárselo
-    /// como sesenta pintaría de rojo un tema que cabe de sobra.
+    /// como sesenta pintaría de rojo un tema que cabe de sobra. Una imagen fija, igual: se envía al
+    /// empezar y ya no cambia nunca. Y una animada no cambia más deprisa que su fotograma más corto.
     /// </remarks>
-    private static double RefreshHz(LayoutWidget widget)
+    private static double RefreshHz(LayoutWidget widget, LayoutDocument layout, Func<string, ImageProbe?> probe)
     {
         // El cargador exige al menos MinRefreshMs, pero esto también se llama sobre documentos en
         // memoria: el medidor del editor se recalcula mientras el usuario teclea el número, y un 0 a
         // medio escribir daba infinito y un negativo restaba consumo del total. Lo más rápido que
         // el formato admite es una cota honrada para algo que todavía se está escribiendo.
         double refresh = 1000.0 / Math.Max(widget.RefreshMs, LayoutLoader.MinRefreshMs);
-        return widget is ClockWidget clock
-            ? Math.Min(refresh, 1.0 / ClockFormat.Period(clock.Format).TotalSeconds)
-            : refresh;
+        return widget switch
+        {
+            ClockWidget clock => Math.Min(refresh, 1.0 / ClockFormat.Period(clock.Format).TotalSeconds),
+            ImageWidget image => probe(layout.Resolve(image.Path)) is { Animated: true } animated
+                ? Math.Min(refresh, animated.FramesPerSecond)
+                : 0,
+            _ => refresh,
+        };
     }
 }
