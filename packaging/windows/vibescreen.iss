@@ -147,6 +147,11 @@ Name: "{autodesktop}\VibeScreen"; Filename: "{app}\vibescreen-app.exe"; Tasks: d
 ; Sin elevar: si la ventana heredara el token del instalador, Windows le rompería el arrastrar y
 ; soltar desde el Explorador. Es lo mismo que pide su app.manifest.
 Filename: "{app}\vibescreen-app.exe"; Description: "{cm:LaunchProgram,VibeScreen}"; Flags: postinstall nowait skipifsilent runasoriginaluser
+; La actualización desde la propia ventana: la lanza en silencio, y StopServiceAndApp la cierra. Pide
+; volver a abrirla con /RELAUNCH=1, porque en silencio la casilla de arriba no sale y nadie lo haría.
+; postinstall aunque no haya casilla: es lo que la deja para el final, con el servicio ya arrancado.
+; Sin él va antes de ssPostInstall, y la ventana se abría diez segundos antes que el servicio.
+Filename: "{app}\vibescreen-app.exe"; Flags: postinstall nowait runasoriginaluser; Check: RelaunchAfterUpdate
 
 [Code]
 const
@@ -198,6 +203,12 @@ end;
 function IsFirstInstall: Boolean;
 begin
   Result := FirstInstall;
+end;
+
+{ Solo en silencio: con el asistente a la vista ya está la casilla de «Abrir VibeScreen». }
+function RelaunchAfterUpdate: Boolean;
+begin
+  Result := WizardSilent and (ExpandConstant('{param:RELAUNCH|0}') = '1');
 end;
 
 function InitializeSetup: Boolean;

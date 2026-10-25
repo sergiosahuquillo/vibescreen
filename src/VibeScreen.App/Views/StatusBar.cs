@@ -1,8 +1,8 @@
-using System.Reflection;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Documents;
 using Avalonia.Controls.Shapes;
+using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using VibeScreen.App.Localization;
@@ -50,6 +50,9 @@ public sealed class StatusBar : Border
         VerticalAlignment = VerticalAlignment.Center,
     };
 
+    private readonly ContentControl _update = new() { VerticalAlignment = VerticalAlignment.Center, IsVisible = false };
+    private string? _updateShown;
+
     public StatusBar()
     {
         Height = 32;
@@ -88,6 +91,7 @@ public sealed class StatusBar : Border
                     Foreground = Palette.FaintBrush,
                     VerticalAlignment = VerticalAlignment.Center,
                 }),
+                _update,
             },
         };
 
@@ -121,6 +125,36 @@ public sealed class StatusBar : Border
     public void ShowRate(double? bytesPerSecond) =>
         _rate.Text = bytesPerSecond is { } rate ? Loc.Number(rate) + " B/s" : "";
 
+    /// <summary>Se pulsa la pastilla de la versión nueva.</summary>
+    public event Action? UpdateClicked;
+
+    /// <summary>
+    /// La versión nueva al lado de la de ahora, o nada si no la hay. Se pulsa y lleva a Ajustes, que
+    /// es donde se decide qué hacer con ella.
+    /// </summary>
+    public void ShowUpdate(string? version)
+    {
+        if (version == _updateShown) return;
+        _updateShown = version;
+
+        if (version is null)
+        {
+            _update.Content = null;
+            _update.IsVisible = false;
+            return;
+        }
+
+        // Una pastilla que se pulsa y no un botón: dentro de un botón, Fluent le pondría su fondo al
+        // pasar el ratón, y esto tiene que verse igual que las pastillas de las tarjetas.
+        var flag = Blocks.Flag(Loc.L("status.update", version), Tone.Warn, Icons.Import);
+        flag.Cursor = new Cursor(StandardCursorType.Hand);
+        Loc.Set(flag, ToolTip.TipProperty, Loc.L("status.update.tip"));
+        flag.PointerReleased += (_, _) => UpdateClicked?.Invoke();
+
+        _update.Content = flag;
+        _update.IsVisible = true;
+    }
+
     private static Border Separator() => new()
     {
         Width = 1,
@@ -129,24 +163,6 @@ public sealed class StatusBar : Border
         VerticalAlignment = VerticalAlignment.Center,
     };
 
-    /// <summary>
-    /// La versión del ejecutable.
-    /// </summary>
-    /// <remarks>
-    /// Del <c>InformationalVersion</c> y no del <c>Version</c> a secas: es el que lleva el sufijo de
-    /// la compilación cuando lo hay, y el que se corresponde con lo que se publica. Se le quita lo
-    /// que el SDK añade detrás de un «+», que es el hash de git y no cabe en la franja.
-    /// </remarks>
-    private static string Version
-    {
-        get
-        {
-            string? raw = Assembly.GetEntryAssembly()?
-                .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
-            if (raw is null) return "";
-
-            int plus = raw.IndexOf('+', StringComparison.Ordinal);
-            return "v" + (plus < 0 ? raw : raw[..plus]);
-        }
-    }
+    /// <summary>La versión del ejecutable, como se escriben los tags.</summary>
+    private static string Version => BuildInfo.Version.Length == 0 ? "" : "v" + BuildInfo.Version;
 }

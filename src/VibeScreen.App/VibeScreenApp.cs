@@ -8,6 +8,7 @@ using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.Themes.Fluent;
 using VibeScreen.App.Localization;
+using VibeScreen.App.Updates;
 using VibeScreen.App.Views;
 
 namespace VibeScreen.App;
@@ -24,9 +25,12 @@ namespace VibeScreen.App;
 public sealed class VibeScreenApp : Application, IDisposable
 {
     private readonly AppSettings _settings = AppSettingsStore.Load();
+    private readonly Updater _updater;
     private ServiceLink? _service;
     private MainWindow? _window;
     private TrayIcon? _tray;
+
+    public VibeScreenApp() => _updater = new Updater(_settings);
 
     public override void Initialize()
     {
@@ -106,6 +110,9 @@ public sealed class VibeScreenApp : Application, IDisposable
             };
 
             Show();
+
+            // Con la ventana ya abierta: según el modo, busca dentro de un rato o no hace nada.
+            _updater.Start();
         }
 
         base.OnFrameworkInitializationCompleted();
@@ -168,6 +175,7 @@ public sealed class VibeScreenApp : Application, IDisposable
     /// </remarks>
     public void Dispose()
     {
+        _updater.Dispose();
         _service?.Dispose();
         _service = null;
         _tray?.Dispose();
@@ -178,7 +186,7 @@ public sealed class VibeScreenApp : Application, IDisposable
     {
         if (_window is null)
         {
-            _window = new MainWindow(_service!, _settings, Restart);
+            _window = new MainWindow(_service!, _settings, _updater, Restart);
             _window.Closing += (_, e) =>
             {
                 // A la bandeja, no al cementerio.

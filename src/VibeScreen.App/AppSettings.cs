@@ -60,6 +60,27 @@ public sealed record AppSettings
     /// </summary>
     [JsonConverter(typeof(JsonStringEnumConverter<RenderMode>))]
     public RenderMode? RenderTrying { get; set; }
+
+    /// <summary>Si la ventana busca versiones nuevas por su cuenta, solo cuando se le pide o nunca.</summary>
+    [JsonConverter(typeof(JsonStringEnumConverter<UpdateMode>))]
+    public UpdateMode Updates { get; set; } = UpdateMode.Notify;
+}
+
+/// <summary>Qué hace la ventana con las versiones nuevas.</summary>
+/// <remarks>
+/// Instalar es siempre a mano, en los tres: cada actualización cierra la ventana, apaga el panel unos
+/// segundos y pide permiso de administrador, y eso no puede pasar sin que nadie lo haya pedido.
+/// </remarks>
+public enum UpdateMode
+{
+    /// <summary>Busca al abrirse y una vez al día, y avisa si hay una nueva.</summary>
+    Notify,
+
+    /// <summary>Solo busca cuando se pulsa «Buscar ahora».</summary>
+    Manual,
+
+    /// <summary>No actualizar: ni busca ni se conecta a nada.</summary>
+    Off,
 }
 
 [JsonSourceGenerationOptions(

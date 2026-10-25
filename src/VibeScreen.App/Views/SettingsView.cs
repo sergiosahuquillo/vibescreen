@@ -6,6 +6,7 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using VibeScreen.App.Localization;
 using VibeScreen.App.Theme;
+using VibeScreen.App.Updates;
 using VibeScreen.Core.Rendering;
 
 namespace VibeScreen.App.Views;
@@ -21,6 +22,7 @@ public sealed class SettingsView : UserControl
     private readonly AppSettings _settings;
     private readonly Action _changed;
     private readonly Action _restart;
+    private readonly Updater _updater;
 
     private readonly List<(string Key, Button Button)> _swatches = [];
 
@@ -41,15 +43,18 @@ public sealed class SettingsView : UserControl
 
     /// <param name="changed">Se llama tras cada cambio, para que la ventana se lo aplique a sí misma.</param>
     /// <param name="restart">Vuelve a abrir la aplicación, que es lo único que cambia el modo de render.</param>
-    public SettingsView(AppSettings settings, Action changed, Action restart)
+    /// <param name="updater">El de la aplicación. Lo enseña la tarjeta de actualizaciones.</param>
+    public SettingsView(AppSettings settings, Action changed, Action restart, Updater updater)
     {
         ArgumentNullException.ThrowIfNull(settings);
         ArgumentNullException.ThrowIfNull(changed);
         ArgumentNullException.ThrowIfNull(restart);
+        ArgumentNullException.ThrowIfNull(updater);
 
         _settings = settings;
         _changed = changed;
         _restart = restart;
+        _updater = updater;
 
         _saveDelay.Tick += (_, _) =>
         {
@@ -71,11 +76,19 @@ public sealed class SettingsView : UserControl
 
         var grid = new Grid12();
         grid.Children.Add(Grid12.Span(Appearance(), 7));
-        grid.Children.Add(Grid12.Span(new StackPanel
-        {
-            Spacing = 20,
-            Children = { BuildRender(), Storage() },
-        }, 5));
+        var side = new StackPanel { Spacing = 20 };
+
+        // Solo donde hay instalador que lanzar. En una compilación de desarrollo sí sale, aunque no
+        // busque: es donde se prueba cómo se ve.
+        if (OperatingSystem.IsWindows())
+            side.Children.Add(new UpdatesCard(_settings, _updater, () =>
+            {
+                _saveDelay.Stop();
+                _saveDelay.Start();
+            }));
+        side.Children.Add(BuildRender());
+        side.Children.Add(Storage());
+        grid.Children.Add(Grid12.Span(side, 5));
 
         var page = new StackPanel
         {
@@ -469,6 +482,9 @@ public sealed class SettingsView : UserControl
         // El render no se cambia en caliente, así que de fábrica se pide para el siguiente arranque,
         // igual que cualquier otro cambio de modo. Si ya se está en automático no hay nada que probar.
         _settings.RenderTrying = _settings.Render == RenderMode.Auto ? null : RenderMode.Auto;
+
+        _settings.Updates = UpdateMode.Notify;
+        _updater.ModeChanged();
 
         // El formulario entero antes de aplicar, porque el selector y los desplegables tienen que decir
         // lo que hay ahora y ninguno se deja cambiar sin disparar su propio evento.
