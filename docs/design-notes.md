@@ -42,6 +42,30 @@ the second runtime either.
 installer of a pinned version and compares it with the SHA-256 that GitHub publishes before putting it
 inside.
 
+**Updating from the window.** The window — not the service — checks `releases/latest` on the GitHub
+API, picks the `VibeScreen-X.Y.Z-setup.exe` that matches the tag, downloads it to
+`%LOCALAPPDATA%\VibeScreen\updates` as a `.part` while hashing it, and keeps it only if the SHA-256
+equals the asset's `digest`, which GitHub computes itself on upload; a release without one is not
+offered. Before launching, it opens the installer denying writes, renames and deletes, hashes it again
+through that handle and keeps it open until the installer exits: the folder belongs to the user, and
+otherwise anything running as that user could swap the file between the check and the launch and get
+it run as administrator. That is why CI publishes no checksum file or manifest. Then it starts the installer with
+`/SILENT /SUPPRESSMSGBOXES /NORESTART /RELAUNCH=1 /LOG=…` and **without** asking for elevation: Inno
+elevates itself and so remembers the original user, which `runasoriginaluser` needs to reopen the
+window un-elevated at the end. `/RELAUNCH=1` is ours: a silent install skips the *postinstall*
+checkbox, so a second `[Run]` entry reopens the window only when asked. It is flagged `postinstall`
+with no checkbox to show: that is what makes it run last, after `ssPostInstall` has started the
+service; without it the window opened ten seconds before the service. The new window deletes, when it
+opens, any downloaded installer of a version already installed (the log stays). The window doesn't
+close itself; the installer's `PrepareToInstall` kills it, and if the user declines UAC the installer exits
+and the window is still there to say so. The service doesn't do any of this on purpose: it runs as
+SYSTEM and its pipe is writable by every local user, so an "install" command there would let anyone
+run whatever was published as SYSTEM without anybody approving it. `updates` in `app.json` picks
+*Notify* (check on start and daily), *Manual* or *Off* (no network at all); nothing installs without
+a click. Debug builds honour `VIBESCREEN_UPDATE_FEED` (another feed URL; plain HTTP allowed on
+loopback) and `VIBESCREEN_FAKE_VERSION` (pretend to be an older version) to try the whole flow
+without publishing anything.
+
 **The file icon is the factory red.** While running, the window and the tray draw their icon with the
 chosen accent; the executable's, the shortcut's and the installer's can't follow it, so they carry the
 dark-mode red. It comes from the same code as the window's icon — `VibeScreen.IconExport` generates it

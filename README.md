@@ -33,8 +33,10 @@ The installer (`VibeScreen-<version>-setup.exe`) sets up:
   other programs may be using it.
 - The **default theme**, on the first install only, so the panel shows something right away.
 
-Updating is running the new installer over the old one: themes and settings are kept. Uninstalling
-asks whether to delete them too (default: no).
+Updating is running the new installer over the old one: themes and settings are kept. The window does
+it for you from **Settings → Updates**: it checks the latest GitHub release when it opens and once a
+day (or only when asked, or never — the user picks), and installing is always a click plus Windows'
+administrator prompt. Uninstalling asks whether to delete themes and settings too (default: no).
 
 The installer is **not code-signed** yet, so SmartScreen warns the first time: *More info* →
 *Run anyway*.

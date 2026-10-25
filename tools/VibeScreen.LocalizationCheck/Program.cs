@@ -228,7 +228,9 @@ try
     var onlyEnglish = catalogs.SelectMany(c => Distinct(c.En, c.Es)).ToList();
 
     using var service = new ServiceLink();
-    var window = new MainWindow(service, new AppSettings(), () => { });
+    var settings = new AppSettings();
+    using var updater = new VibeScreen.App.Updates.Updater(settings);
+    var window = new MainWindow(service, settings, updater, () => { });
     var applySettings = typeof(MainWindow).GetMethod("ApplySettings", BindingFlags.NonPublic | BindingFlags.Instance)!;
     var show = typeof(MainWindow).GetMethod("Show", BindingFlags.NonPublic | BindingFlags.Instance, [typeof(AppView)])!;
 

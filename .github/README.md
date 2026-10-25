@@ -87,8 +87,11 @@ name and revision.
 **Requirements:** Windows 10 version 1809 or later, or Windows 11, on a 64-bit PC. Nothing else to
 install: .NET is included.
 
-To update, run the new installer over the old one: your themes and settings stay. To uninstall, use
-*Installed apps* in Windows; it asks whether to keep your themes and settings.
+To update, go to **Settings → Updates** in the window: it tells you when there's a new version and
+installs it with one click (Windows asks for administrator permission). If you'd rather it didn't look,
+choose *Manually* or *Don't update* there. Running the new installer over the old one also works, and
+either way your themes and settings stay. To uninstall, use *Installed apps* in Windows; it asks
+whether to keep your themes and settings.
 
 ## FAQ
 
@@ -113,7 +116,8 @@ reason to keep it running.
 <details>
 <summary><b>Why does it ask for administrator rights?</b></summary>
 
-Only the installer does, to set up the service and the sensor driver. The window itself runs as a normal
+Only the installer does, to set up the service and the sensor driver, and so does every update
+installed from the window, because it runs that same installer. The window itself runs as a normal
 user.
 </details>
 

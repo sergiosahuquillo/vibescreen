@@ -5,6 +5,7 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using VibeScreen.App.Localization;
 using VibeScreen.App.Theme;
+using VibeScreen.App.Updates;
 using VibeScreen.Contracts;
 using VibeScreen.Core.Rendering;
 
@@ -49,10 +50,11 @@ public sealed class MainWindow : Window, IDisposable
     /// <summary>El idioma que el servicio no ha querido: no se le vuelve a pedir hasta cambiar de idioma.</summary>
     private string? _languageRefused;
 
-    public MainWindow(ServiceLink service, AppSettings settings, Action restart)
+    public MainWindow(ServiceLink service, AppSettings settings, Updater updater, Action restart)
     {
         ArgumentNullException.ThrowIfNull(service);
         ArgumentNullException.ThrowIfNull(settings);
+        ArgumentNullException.ThrowIfNull(updater);
         ArgumentNullException.ThrowIfNull(restart);
         _service = service;
         _settings = settings;
@@ -78,11 +80,20 @@ public sealed class MainWindow : Window, IDisposable
         _panel = new PanelView(service, _sensors);
         _editor = new EditorView(service, _sensors);
         _explorer = new SensorsView(_sensors, _editor);
-        _settingsView = new SettingsView(settings, ApplySettings, restart);
+        _settingsView = new SettingsView(settings, ApplySettings, restart, updater);
 
         _titleBar = new TitleBar(this, ToggleTheme);
         _rail = new NavigationRail(Show);
         _status = new StatusBar();
+
+        // La versión nueva también abajo, para quien no pase por Ajustes. Mientras haya una que
+        // instalar, y nunca con «no actualizar», que el actualizador ya deja sin nada que contar.
+        _status.UpdateClicked += () => Show(AppView.Settings);
+        updater.Changed += () => _status.ShowUpdate(
+            updater.State is { Phase: UpdatePhase.Available or UpdatePhase.Downloading or UpdatePhase.Ready
+                                   or UpdatePhase.Installing, Release: { } release }
+                ? release.Version.ToString()
+                : null);
 
         _body = new ContentControl { Content = _panel };
 

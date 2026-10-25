@@ -5,6 +5,7 @@ using VibeScreen.Core.Rendering;
 using VibeScreen.Core.Drivers;
 using VibeScreen.Core.Sensors;
 using VibeScreen.Core.Transport;
+using VibeScreen.Core.Updates;
 using VibeScreen.Protocol.Display;
 using VibeScreen.Protocol.Rendering;
 
@@ -1628,6 +1629,71 @@ try
 catch (Exception e)
 {
     Broke("Un panel que deja de contestar no cuelga el bucle", e);
+}
+
+Header("Actualizaciones");
+try
+{
+
+    {
+        Check(AppVersion.TryParse("1.0.2", out var plana) && plana == new AppVersion(1, 0, 2), "lee 1.0.2");
+        Check(AppVersion.TryParse("v1.0.10", out var tag) && tag == new AppVersion(1, 0, 10), "y el tag v1.0.10");
+        Check(AppVersion.TryParse("1.0.2+63077ec", out var hash) && hash == new AppVersion(1, 0, 2),
+              "y le quita el hash de git que pone el SDK");
+
+        // Lo que se compila fuera de main no se compara con nada: no busca actualizaciones.
+        foreach (string dev in new[] { "1.0.0-dev", "1.0.3-dev.42+abc", "1.0", "1.0.2.4", "1.-0.2", " ", "" })
+            Check(!AppVersion.TryParse(dev, out _), $"«{dev}» no es una versión publicada");
+
+        Check(new AppVersion(1, 0, 10) > new AppVersion(1, 0, 9), "1.0.10 va después de 1.0.9, no antes como texto");
+        Check(new AppVersion(1, 1, 0) > new AppVersion(1, 0, 99), "y 1.1.0 después de 1.0.99");
+        Check(new AppVersion(2, 0, 0).ToString() == "2.0.0", "y se escribe sin la v");
+
+        const string Hash = "8f434346648f6b96df89dda901c5176b10a6d83961dd3c1ac88b59b2dc327aa4";
+
+        string Release(string tag, string asset, string? digest) => $$"""
+            {
+              "url": "https://api.github.com/repos/sergiosahuquillo/vibescreen/releases/1",
+              "html_url": "https://github.com/sergiosahuquillo/vibescreen/releases/tag/{{tag}}",
+              "tag_name": "{{tag}}", "draft": false, "prerelease": false,
+              "author": { "login": "sergiosahuquillo" },
+              "assets": [
+                { "name": "otra-cosa.zip", "size": 1, "browser_download_url": "https://example.com/otra-cosa.zip",
+                  "digest": "sha256:{{Hash}}" },
+                { "name": "{{asset}}", "size": 41234567, "content_type": "application/x-msdownload",
+                  "browser_download_url": "https://github.com/sergiosahuquillo/vibescreen/releases/download/{{tag}}/{{asset}}",
+                  "digest": {{(digest is null ? "null" : $"\"{digest}\"")}} }
+              ]
+            }
+            """;
+
+        Check(ReleaseFeed.TryParse(Release("v1.0.3", "VibeScreen-1.0.3-setup.exe", "sha256:" + Hash.ToUpperInvariant()),
+                                   out var buena, out var sinProblema) && sinProblema == ReleaseProblem.None,
+              $"lee una release de verdad, campos que no usa incluidos ({sinProblema})");
+        Check(buena?.Version == new AppVersion(1, 0, 3), "con su versión");
+        Check(buena?.FileName == "VibeScreen-1.0.3-setup.exe" && buena.Size == 41234567, "su instalador y lo que mide");
+        Check(buena?.Download.AbsoluteUri.EndsWith("/v1.0.3/VibeScreen-1.0.3-setup.exe", StringComparison.Ordinal) == true,
+              "y de dónde se baja ese, no el otro fichero");
+        Check(buena?.Sha256 == Hash, "el hash, en minúsculas");
+        Check(buena?.Page?.AbsoluteUri.EndsWith("/tag/v1.0.3", StringComparison.Ordinal) == true, "y la página de la release");
+
+        Check(!ReleaseFeed.TryParse(Release("v1.0.3", "VibeScreen-1.0.3-setup.exe", null), out _, out var sinHash) &&
+              sinHash == ReleaseProblem.NoDigest, "sin hash no se ofrece");
+        Check(!ReleaseFeed.TryParse(Release("v1.0.3", "VibeScreen-1.0.3-setup.exe", "sha1:abc"), out _, out var otroHash) &&
+              otroHash == ReleaseProblem.NoDigest, "ni con un hash que no es SHA-256");
+        Check(!ReleaseFeed.TryParse(Release("v1.0.3", "VibeScreen-1.0.2-setup.exe", "sha256:" + Hash), out _, out var otroNumero) &&
+              otroNumero == ReleaseProblem.NoInstaller, "ni con el instalador de otra versión");
+        Check(!ReleaseFeed.TryParse(Release("nightly", "VibeScreen-1.0.3-setup.exe", "sha256:" + Hash), out _, out var sinTag) &&
+              sinTag == ReleaseProblem.Malformed, "ni con un tag que no es una versión");
+        Check(!ReleaseFeed.TryParse("""{ "message": "Not Found" }""", out _, out var noEs) && noEs == ReleaseProblem.Malformed,
+              "y lo que no es una release, tampoco");
+        Check(!ReleaseFeed.TryParse("<html>", out _, out var roto) && roto == ReleaseProblem.Malformed,
+              "ni lo que ni siquiera es JSON");
+    }
+}
+catch (Exception e)
+{
+    Broke("Actualizaciones", e);
 }
 
 Console.WriteLine(new string('=', 48));
