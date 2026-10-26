@@ -43,11 +43,29 @@ public sealed class ByteBudgetScheduler
     /// receptivo»—, y resultó ser demasiado prudente: un tema de diez textos, ocho barras y dos
     /// rótulos, que es lo que mueve sin despeinarse la implementación de referencia en Python, pide
     /// 76.550 B/s. Eso es el 29 % del caudal del panel, pero se salía del presupuesto de un cuarto y
-    /// el editor lo habría pintado en rojo. Con 0,6 entra al 49 % y aún queda libre el 40 % del
-    /// enlace para que una orden o un widget recién sucio no esperen detrás de una cola.
+    /// el editor lo habría pintado en rojo. Con 0,6 entraba al 49 % y quedaba libre el 40 % del
+    /// enlace para que una orden o un widget recién sucio no esperaran detrás de una cola.
+    /// </para>
+    /// <para>
+    /// Y subió a 0,75 cuando llegaron los GIF, que son los primeros widgets que de verdad llenan el
+    /// enlace: un Mangekyō de 64 px a 10 fotogramas por segundo son 82 KB/s, más de la mitad del
+    /// presupuesto de 0,6. El caudal, medido otra vez el 26 de octubre de 2026, sigue en 259.600 B/s,
+    /// así que un cuarto de margen son 65 KB/s. Si el enlace fuera más despacio que eso no se rompe
+    /// nada: el planificador cobra por tiempo transcurrido, los envíos tardan más y los widgets se
+    /// saltan fotogramas en vez de dejar cola. Lo que crece es lo que espera una orden de la ventana,
+    /// que va detrás del envío en curso: en el peor caso, tras una pausa, de 0,3 s a 0,375 s.
+    /// </para>
+    /// <para>
+    /// Se probó ese mismo día al 0,8 en la Turing 3.5" rev. A, con un tema que pedía el 139 % de
+    /// aquel presupuesto —cuatro GIF, barras, históricos, temperaturas, un reloj con segundos y textos
+    /// fijos—, así que el enlace iba lleno todo el rato: ni un resto en barras, históricos o números
+    /// al cambiar, y el brillo y el cambio de tema respondiendo al instante. Lo único que se resentía
+    /// eran los GIF, que es lo que toca cuando se pide más de lo que cabe. Se deja en 0,75 y no en lo
+    /// probado para quedarse un poco por debajo: el panel ya ha enseñado que no siempre se queda con
+    /// todo lo que recibe.
     /// </para>
     /// </remarks>
-    public const double DefaultUtilization = 0.6;
+    public const double DefaultUtilization = 0.75;
 
     private readonly Dictionary<string, Pending> _pending = new(StringComparer.Ordinal);
 

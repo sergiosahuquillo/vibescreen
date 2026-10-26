@@ -270,32 +270,32 @@ try
     Check(reference.RequiredBytesPerSecond / reference.PanelBytesPerSecond < 0.35,
           "ancho de banda: y en el panel no llega ni a un tercio del caudal");
 
-    // Una gráfica de 320x100 son 64.000 B. A 2 Hz satura; a 3 Hz ya no cabe.
+    // Una gráfica de 320x100 son 64.000 B. A 3 Hz satura; a 4 Hz ya no cabe.
     var tight = BandwidthBudget.Analyze(
-        [new WidgetBandwidth("chart", new PixelRect(0, 0, 320, 100), 2.0)], caps);
-    Check(!tight.Oversubscribed && tight.NearLimit,
-          $"ancho de banda: gráfica a 2 Hz cabe pero satura ({tight.Utilization:P0})");
-    var heavy = BandwidthBudget.Analyze(
         [new WidgetBandwidth("chart", new PixelRect(0, 0, 320, 100), 3.0)], caps);
-    Check(heavy.Oversubscribed, $"ancho de banda: gráfica a 3 Hz no cabe ({heavy.Utilization:P0})");
+    Check(!tight.Oversubscribed && tight.NearLimit,
+          $"ancho de banda: gráfica a 3 Hz cabe pero satura ({tight.Utilization:P0})");
+    var heavy = BandwidthBudget.Analyze(
+        [new WidgetBandwidth("chart", new PixelRect(0, 0, 320, 100), 4.0)], caps);
+    Check(heavy.Oversubscribed, $"ancho de banda: gráfica a 4 Hz no cabe ({heavy.Utilization:P0})");
     Check(heavy.Consumers[0].WidgetId == "chart", "ancho de banda: ordena por consumo");
 
     // Y lo que el informe dice, el planificador lo cumple. Se comprueba repartiendo de verdad y no
     // comparando números: es lo único que impide que los dos se vayan cada uno por su lado.
     var chartBox = new PixelRect(0, 0, 320, 100);
     var keepsUp = new ByteBudgetScheduler(Throughput);
-    for (int half = 0; half < 20; half++) // 10 s a 2 Hz, lo que «cabe pero satura»
+    for (int third = 0; third < 30; third++) // 10 s a 3 Hz, lo que «cabe pero satura»
     {
         keepsUp.MarkDirty("chart", chartBox);
-        keepsUp.Drain(TimeSpan.FromSeconds(0.5));
+        keepsUp.Drain(TimeSpan.FromSeconds(1.0 / 3));
     }
     Check(keepsUp.PendingCount == 0, "planificador: lo que el informe da por cabido sale sin dejar cola");
 
     var swamped = new ByteBudgetScheduler(Throughput);
-    for (int third = 0; third < 30; third++) // 10 s a 3 Hz, lo que «no cabe»
+    for (int quarter = 0; quarter < 40; quarter++) // 10 s a 4 Hz, lo que «no cabe»
     {
-        swamped.MarkDirty($"chart{third}", chartBox);
-        swamped.Drain(TimeSpan.FromSeconds(1.0 / 3));
+        swamped.MarkDirty($"chart{quarter}", chartBox);
+        swamped.Drain(TimeSpan.FromSeconds(0.25));
     }
     Check(swamped.PendingCount > 0, "planificador: y lo que da por no cabido va dejando cola");
 }

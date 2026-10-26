@@ -140,6 +140,7 @@ public sealed class EditorView : UserControl, IDisposable
     /// congelaba la ventana letra a letra esperando el timeout. Se pregunta una vez por segundo.
     /// </remarks>
     private readonly Dictionary<string, (bool There, TimeSpan At)> _fileMemo = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, (ImageProbe? Probe, TimeSpan At)> _probeMemo = new(StringComparer.OrdinalIgnoreCase);
     private int _throughput = RevADisplayProbe.MeasuredThroughputBytesPerSecond;
 
     public EditorView(ServiceLink service, RemoteSensorProvider sensors)
@@ -576,6 +577,7 @@ public sealed class EditorView : UserControl, IDisposable
         var without = new WrapPanel { ItemSpacing = 8, LineSpacing = 8 };
         without.Children.Add(Small(Loc.L("widget.kind.fixed-text"), () => Insert(FixedText())));
         without.Children.Add(Small(Loc.L("editor.add.clock"), () => Insert(Clock())));
+        without.Children.Add(Small(Loc.L("editor.add.image"), () => Run(AddImageAsync)));
 
         // Como el cuerpo de una caja del diseño: el buscador y su ayuda, a 8, son un campo; y de un
         // grupo al siguiente, el hueco del cuerpo.
@@ -1282,6 +1284,48 @@ public sealed class EditorView : UserControl, IDisposable
         };
     }
 
+    /// <summary>
+    /// Una imagen nueva. El fichero se elige al pulsar, como el del fondo, y sin fichero no se añade
+    /// nada: un widget de imagen vacío solo sería un recuadro que no se puede guardar.
+    /// </summary>
+    private async Task AddImageAsync()
+    {
+        if (await Forms.PickImageAsync(this, Loc.L("editor.image.pick")).ConfigureAwait(true) is not { } path) return;
+
+        if (WidgetImages.Probe(path) is not { } probe)
+        {
+            ShowMessage(Loc.L("editor.image.unreadable", Path.GetFileName(path), WidgetImages.MaxFrames, WidgetImages.MaxMegabytes));
+            _message.Foreground = Palette.BadBrush;
+            return;
+        }
+
+        Insert(Image(path, probe));
+    }
+
+    /// <summary>
+    /// La imagen a su tamaño, o reducida hasta caber si es más grande que el panel. Si es animada, se
+    /// mira al ritmo de su fotograma más corto, que es lo que hace falta para no saltarse ninguno.
+    /// </summary>
+    private ImageWidget Image(string path, ImageProbe probe)
+    {
+        const int Margin = 16;
+        double scale = Math.Min(1, Math.Min(
+            (double)(_layout.Display.Width - Margin) / probe.Width,
+            (double)(_layout.Display.Height - Margin) / probe.Height));
+        int width = Math.Max(1, (int)Math.Round(probe.Width * scale));
+        int height = Math.Max(1, (int)Math.Round(probe.Height * scale));
+        var (x, y) = FreeSpot(width, height);
+
+        string name = CanonicalSensorIds.Slug(Path.GetFileNameWithoutExtension(path));
+        return new ImageWidget
+        {
+            Id = UniqueId(name.Length > 0 ? name : Loc.S("editor.id.image")),
+            Rect = new PixelRect(x, y, width, height),
+            Path = path,
+            RefreshMs = probe.Animated ? Math.Max(LayoutLoader.MinRefreshMs, probe.ShortestMs) : 1000,
+        };
+    }
+
     /// <summary>Un identificador legible y libre, a partir del sensor.</summary>
     private string UniqueId(string seed)
     {
@@ -1311,6 +1355,7 @@ public sealed class EditorView : UserControl, IDisposable
         BarWidget => Loc.L("widget.kind.bar"),
         GaugeWidget => Loc.L("widget.kind.gauge"),
         ChartWidget => Loc.L("widget.kind.chart"),
+        ImageWidget => Loc.L("widget.kind.image"),
         _ => Loc.L("widget.kind.generic"),
     };
 
@@ -1342,7 +1387,7 @@ public sealed class EditorView : UserControl, IDisposable
             return;
         }
 
-        _editing = new WidgetProperties(widget, _sensors, Changed, () => Remove(widget), IdProblem);
+        _editing = new WidgetProperties(widget, _sensors, Changed, () => Remove(widget), IdProblem, _layout.Resolve);
         _properties.Content = _editing;
     }
 
@@ -1496,16 +1541,7 @@ public sealed class EditorView : UserControl, IDisposable
     private async Task PickBackgroundImageAsync()
     {
         if (_layout.Background is not ImageBackground image) return;
-        if (TopLevel.GetTopLevel(this) is not { } top) return;
-
-        var files = await top.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-        {
-            Title = Loc.S("editor.display.image.pick"),
-            AllowMultiple = false,
-            FileTypeFilter = [FilePickerFileTypes.ImageAll],
-        });
-
-        if (files.Count == 0 || files[0].TryGetLocalPath() is not { } path) return;
+        if (await Forms.PickImageAsync(this, Loc.L("editor.display.image.pick")).ConfigureAwait(true) is not { } path) return;
 
         image.Path = path;
         Changed();
@@ -1715,7 +1751,7 @@ public sealed class EditorView : UserControl, IDisposable
         // estuviera roto.
         if (_ownMessage) return;
 
-        var warnings = LayoutInspector.Warnings(_layout, _sensors, FileThere);
+        var warnings = LayoutInspector.Warnings(_layout, _sensors, FileThere, ImageThere);
         if (warnings.Count == 0)
         {
             if (_message.Foreground == Palette.WarnBrush) Loc.Set(_message, TextBlock.TextProperty, Loc.Empty);
@@ -1738,6 +1774,21 @@ public sealed class EditorView : UserControl, IDisposable
         return there;
     }
 
+    /// <summary>
+    /// Cómo es una imagen de widget, preguntándoselo al disco como mucho una vez por segundo: por
+    /// lo mismo que <see cref="FileThere"/>, que esto también se recalcula con cada tecla.
+    /// </summary>
+    private ImageProbe? ImageThere(string path)
+    {
+        var now = _clock.Elapsed;
+        if (_probeMemo.TryGetValue(path, out var seen) && now - seen.At < TimeSpan.FromSeconds(1))
+            return seen.Probe;
+
+        var probe = WidgetImages.Probe(path);
+        _probeMemo[path] = (probe, now);
+        return probe;
+    }
+
     /// <summary>Lo que se lee en la columna cuando no hay ningún widget elegido.</summary>
     /// <remarks>
     /// Antes se quedaba en blanco, y una columna vacía debajo de una lista llena parece que algo se
@@ -1757,7 +1808,7 @@ public sealed class EditorView : UserControl, IDisposable
             ThroughputBytesPerSecond = _throughput,
         };
 
-        var report = BandwidthBudget.Analyze(LayoutInspector.Consumers(_layout), capabilities);
+        var report = BandwidthBudget.Analyze(LayoutInspector.Consumers(_layout, ImageThere), capabilities);
         var worst = report.Consumers.Count > 0
             ? Loc.L("editor.bandwidth.worst", report.Consumers[0].WidgetId, report.Consumers[0].BytesPerSecond)
             : Loc.Empty;

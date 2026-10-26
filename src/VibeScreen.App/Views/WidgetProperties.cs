@@ -6,6 +6,7 @@ using SkiaSharp;
 using VibeScreen.App.Localization;
 using VibeScreen.App.Theme;
 using VibeScreen.Core.Layout;
+using VibeScreen.Core.Rendering;
 using VibeScreen.Core.Sensors;
 using PixelRect = VibeScreen.Protocol.Display.PixelRect;
 
@@ -65,6 +66,9 @@ public sealed class WidgetProperties : UserControl
 
     private bool _suspend;
 
+    /// <summary>Dónde está de verdad un fichero del tema, que puede venir nombrado relativo a su carpeta.</summary>
+    private readonly Func<string, string> _resolve;
+
     /// <summary>Reescribe los recorridos de la regla de color, que llevan la unidad del widget dentro.</summary>
     private Action _showRanges = () => { };
 
@@ -72,9 +76,12 @@ public sealed class WidgetProperties : UserControl
     /// Qué le pasa a un identificador escrito a mano, o null si no le pasa nada. Lo sabe el editor,
     /// que es quien tiene los demás widgets del tema.
     /// </param>
+    /// <param name="resolve">
+    /// Cómo se resuelve la ruta de una imagen contra la carpeta del tema. Por omisión, tal cual.
+    /// </param>
     public WidgetProperties(
         LayoutWidget widget, RemoteSensorProvider sensors, Action changed, Action delete,
-        Func<LayoutWidget, string, Text?> idProblem)
+        Func<LayoutWidget, string, Text?> idProblem, Func<string, string>? resolve = null)
     {
         ArgumentNullException.ThrowIfNull(widget);
         ArgumentNullException.ThrowIfNull(sensors);
@@ -84,6 +91,7 @@ public sealed class WidgetProperties : UserControl
         _widget = widget;
         _sensors = sensors;
         _changed = changed;
+        _resolve = resolve ?? (path => path);
 
         // El identificador, siempre a la vista: es lo que dice cuál de los treinta widgets se toca.
         var head = new FormGrid(96);
@@ -128,6 +136,9 @@ public sealed class WidgetProperties : UserControl
                 break;
             case GraphWidget graph:
                 BuildGraph(graph);
+                break;
+            case ImageWidget image:
+                BuildImage(image);
                 break;
         }
 
@@ -420,6 +431,74 @@ public sealed class WidgetProperties : UserControl
     /// <summary>El resumen de una letra: el tamaño y si va marcada, que es lo que se reconoce de un vistazo.</summary>
     private static Text Describe(LabelWidget widget) =>
         widget.Bold ? Loc.L("props.lettering.summary.bold", widget.Size) : Loc.L("props.lettering.summary", widget.Size);
+
+    // ---- imagen ----
+
+    private void BuildImage(ImageWidget image)
+    {
+        var section = Section(Loc.L("props.image"), open: true);
+
+        var name = new TextBlock
+        {
+            VerticalAlignment = VerticalAlignment.Center,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+        };
+        var info = Forms.OneLine();
+
+        // Lo que es la imagen y no se ve en la vista previa: si se anima y a qué ritmo. Es lo que dice
+        // cuánto va a gastar del enlace, junto con el tamaño de la caja.
+        void Show()
+        {
+            string file = Path.GetFileName(image.Path);
+            name.Text = file;
+            section.Summary = Loc.Raw(file);
+
+            var probe = WidgetImages.Probe(_resolve(image.Path));
+            name.Foreground = probe is null ? Palette.WarnBrush : Palette.MutedBrush;
+            Loc.Set(info, TextBlock.TextProperty, probe switch
+            {
+                null => Loc.L("props.image.info.unreadable"),
+                { Animated: true } animated => Loc.L("props.image.info.animated", animated.Frames, animated.FramesPerSecond, animated.Width, animated.Height),
+                { } still => Loc.L("props.image.info.static", still.Width, still.Height),
+            });
+        }
+
+        var choose = Forms.Action(Loc.L("props.image.choose"), async () =>
+        {
+            // Sin nadie que espere a un clic, un fallo aquí se llevaría la ventana: se queda en no
+            // cambiar nada, que es lo que ve quien cierra el diálogo.
+            string? path;
+            try
+            {
+                path = await Forms.PickImageAsync(this, Loc.L("editor.image.pick")).ConfigureAwait(true);
+            }
+            catch (Exception e) when (e is not OutOfMemoryException)
+            {
+                return;
+            }
+
+            if (path is null) return;
+            image.Path = path;
+            Show();
+            _changed();
+        });
+
+        section.Fields.Add(Loc.L("props.image.file"), new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 8,
+            Children = { choose, name },
+        });
+        section.Fields.AddWide(info);
+
+        section.Fields.Add(Loc.L("props.image.fit"), Forms.Enum(image.Fit, Labels.ImageFit, fit =>
+        {
+            image.Fit = fit;
+            _changed();
+        }));
+
+        Show();
+    }
 
     // ---- gráficas ----
 

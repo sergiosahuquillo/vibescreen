@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Platform.Storage;
 using VibeScreen.App.Localization;
 using VibeScreen.App.Theme;
 
@@ -155,6 +156,24 @@ public static class Forms
         };
 
         return await dialog.ShowDialog<string?>(parent).ConfigureAwait(true);
+    }
+
+    /// <summary>
+    /// Pide una imagen con el diálogo del sistema. Null si se cancela, si no es un fichero del disco
+    /// o si no hay ventana donde abrirlo.
+    /// </summary>
+    public static async Task<string?> PickImageAsync(Visual? owner, Text title)
+    {
+        if (TopLevel.GetTopLevel(owner) is not { } top) return null;
+
+        var files = await top.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = title.ToString(),
+            AllowMultiple = false,
+            FileTypeFilter = [FilePickerFileTypes.ImageAll],
+        }).ConfigureAwait(true);
+
+        return files.Count == 0 ? null : files[0].TryGetLocalPath();
     }
 
     public static TextBlock Label(Text text) => Loc.Set(new TextBlock
