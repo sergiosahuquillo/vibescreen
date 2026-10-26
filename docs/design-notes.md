@@ -498,14 +498,25 @@ asked for almost the whole budget came out as "24 % of the panel", in green, and
 starts. The constant is public precisely so that the report and the scheduler can't speak of different
 numbers.
 
-**The fraction is 0.6, and that number has a measurement behind it.** It used to be a quarter, which
-was an intuition — "leaving margin keeps the panel responsive" — until it was checked against the case
-that matters: a theme of ten texts, eight bars and two labels, the size of the ones the Python
-reference implementation moves without breaking a sweat, asks for 76,550 B/s. That is **29 % of the
-panel's throughput**, but it fell outside a budget of a quarter, so the editor would have painted red a
-theme the hardware moves with room to spare. With 0.6 it fits at 49 % and 40 % of the link is still
-free. `ProtocolCheck` pins it with that specific theme, and also checks that what the report considers
-to fit the scheduler dispatches without leaving a queue.
+**The fraction is 0.75, and the numbers it has had have a measurement behind them.** It used to be a
+quarter, which was an intuition — "leaving margin keeps the panel responsive" — until it was checked
+against the case that matters: a theme of ten texts, eight bars and two labels, the size of the ones
+the Python reference implementation moves without breaking a sweat, asks for 76,550 B/s. That is
+**29 % of the panel's throughput**, but it fell outside a budget of a quarter, so the editor would have
+painted red a theme the hardware moves with room to spare. At 0.6 it fit at 49 %.
+
+It went up to 0.75 with the GIF widgets, the first ones that really fill the link: a 64 px Mangekyō
+at 10 frames per second is 82 KB/s, more than half of a 0.6 budget. The throughput, measured again on
+26 October 2026, is still 259,600 B/s, so a quarter of margin is 65 KB/s. If the link ran slower than
+that nothing would break: the scheduler credits by elapsed time, sends take longer and widgets skip
+frames instead of queueing. What grows is how long a command from the window waits behind the send in
+progress — at worst, after a pause, from 0.3 s to 0.375 s. It was tested that same day at 0.8 on the
+Turing 3.5" rev. A, with a theme asking for 139 % of that budget, so the link was full the whole time:
+no leftovers on bars, charts or changing numbers, and brightness and theme changes answered at once;
+only the GIFs suffered, as they should when more is asked than fits. It was then set to 0.75 rather
+than what was tested, to stay a little below it: the panel has already shown that it doesn't always
+keep everything it receives. `ProtocolCheck` pins the reference theme, and
+also checks that what the report considers to fit the scheduler dispatches without leaving a queue.
 
 **And within the budget, priority really rules.** When the one that goes first doesn't fit yet, the
 distribution stops; it doesn't skip to the next. Skipping let a small low-priority rectangle overtake a
