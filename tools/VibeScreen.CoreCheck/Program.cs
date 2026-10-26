@@ -474,6 +474,23 @@ try
               "un renderizador recién hecho sigue la animación por donde iba, no vuelve a empezar");
     }
 
+    // Como el lienzo del editor al estirar con el ratón: la caja cambia en el mismo widget y se
+    // repinta sin rehacer el renderizador, que se llevaría por delante el histórico de las gráficas.
+    var stretched = LayoutLoader.Parse(Minimal(Picture("gif", gif, 10)));
+    using (var renderer = new LayoutRenderer(stretched, new FakeClock(DateTimeOffset.FromUnixTimeMilliseconds(600_000))))
+    {
+        renderer.RenderAll(new FakeSensors(), TimeSpan.Zero);
+        stretched.Widgets[0].Rect = new PixelRect(10, 10, 80, 80);
+        renderer.RenderAll(new FakeSensors(), TimeSpan.Zero);
+        Check(renderer.Surface.Bitmap.GetPixel(85, 85) == SKColors.Red,
+              "al estirar la caja sin rehacer el renderizador, la imagen la sigue");
+
+        stretched.Widgets[0].Rect = new PixelRect(10, 10, 20, 20);
+        renderer.RenderAll(new FakeSensors(), TimeSpan.Zero);
+        Check(renderer.Surface.Bitmap.GetPixel(25, 25) == SKColors.Red && renderer.Surface.Bitmap.GetPixel(35, 35) == background,
+              "y al encogerla, también");
+    }
+
     var cost = LayoutInspector.Consumers(both).ToDictionary(c => c.WidgetId);
     Check(Near(cost["gif"].RefreshHz, 5), $"un GIF gasta lo que su ritmo, aunque se mire más a menudo ({cost["gif"].RefreshHz})");
     Check(cost["png"].RefreshHz == 0, "una imagen fija no gasta enlace: se envía una vez y ya");

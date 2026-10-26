@@ -801,12 +801,21 @@ public sealed class LayoutRenderer : IDisposable
     }
 
     /// <summary>
-    /// Una imagen, fija o animada. Los fotogramas se escalan a la caja una vez, al montar el
-    /// renderizador, y a partir de ahí cada repintado es copiarlos.
+    /// Una imagen, fija o animada. Cada fotograma se escala a la caja la primera vez que se pinta, y a
+    /// partir de ahí cada repintado es copiarlo.
     /// </summary>
+    /// <remarks>
+    /// Se escala al pintar y no al montar el renderizador porque la caja puede cambiar sin que se
+    /// rehaga: el editor, al estirarla con el ratón, solo repinta, que rehacerlo en cada movimiento se
+    /// llevaría el histórico de las gráficas. Los demás widgets dibujan con la caja que reciben y no se
+    /// enteran; la imagen tiene que darse cuenta de que ya no mide lo mismo. Y fotograma a fotograma, no
+    /// todos de golpe: durante un arrastre, cada movimiento escala solo el que se ve.
+    /// </remarks>
     private sealed class ImageState : WidgetState
     {
-        private readonly SKImage[] _frames;
+        private readonly ImageWidget _widget;
+        private readonly string _path;
+        private readonly SKImage?[] _frames;
 
         /// <summary>Cuándo empieza cada fotograma dentro de una vuelta de la animación, en milisegundos.</summary>
         private readonly long[] _starts;
@@ -814,55 +823,26 @@ public sealed class LayoutRenderer : IDisposable
         private readonly long _loop;
         private int _shown = -1;
 
+        /// <summary>El tamaño de caja para el que están escalados los fotogramas de <see cref="_frames"/>.</summary>
+        private (int Width, int Height) _scaledFor;
+
         public ImageState(ImageWidget widget, LayoutDocument layout) : base(widget)
         {
-            var frames = new List<SKImage>();
+            _widget = widget;
+            _path = layout.Resolve(widget.Path);
+
             var starts = new List<long>();
             long loop = 0;
-
-            try
+            WidgetImages.Use(_path, source =>
             {
-                WidgetImages.Use(layout.Resolve(widget.Path), source =>
+                foreach (int duration in source.Durations)
                 {
-                    var rect = widget.Rect;
+                    starts.Add(loop);
+                    loop += duration;
+                }
+            });
 
-                    // Los fotogramas escalados son de este widget y no de la caché, así que también
-                    // cuentan: una imagen pequeña estirada a todo el panel ocupa lo que el panel.
-                    if ((long)rect.Width * rect.Height * 4 * source.Bitmaps.Count > WidgetImages.MaxBytes) return;
-
-                    var first = source.Bitmaps[0];
-                    var target = Placement(widget.Fit, first.Width, first.Height, rect.Width, rect.Height);
-
-                    // Lo que se amplía al doble o más casi siempre es un icono o pixel art, y suavizado
-                    // se vuelve borroso. Lo que se reduce, en cambio, necesita el filtro para no dentar.
-                    var sampling = target.Width >= first.Width * 2 && target.Height >= first.Height * 2
-                        ? new SKSamplingOptions(SKFilterMode.Nearest, SKMipmapMode.None)
-                        : new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear);
-
-                    var info = new SKImageInfo(rect.Width, rect.Height, SKColorType.Bgra8888, SKAlphaType.Premul);
-                    for (int i = 0; i < source.Bitmaps.Count; i++)
-                    {
-                        using var surface = SKSurface.Create(info);
-                        surface.Canvas.Clear(SKColors.Transparent);
-
-                        // Sin copiar los píxeles: la imagen vive lo que dura este dibujo, dentro del candado.
-                        using (var pixels = source.Bitmaps[i].PeekPixels())
-                        using (var image = SKImage.FromPixels(pixels))
-                            surface.Canvas.DrawImage(image, target, sampling);
-
-                        frames.Add(surface.Snapshot());
-                        starts.Add(loop);
-                        loop += source.Durations[i];
-                    }
-                });
-            }
-            catch
-            {
-                foreach (var frame in frames) frame.Dispose();
-                throw;
-            }
-
-            _frames = [.. frames];
+            _frames = new SKImage?[starts.Count];
             _starts = [.. starts];
             _loop = loop;
         }
@@ -895,12 +875,67 @@ public sealed class LayoutRenderer : IDisposable
 
         public override void Draw(SKCanvas canvas, SKRect box)
         {
-            if (_shown >= 0 && _shown < _frames.Length) canvas.DrawImage(_frames[_shown], box.Left, box.Top);
+            if (_shown < 0 || _shown >= _frames.Length) return;
+
+            var size = ((int)box.Width, (int)box.Height);
+            if (size != _scaledFor)
+            {
+                Forget();
+                _scaledFor = size;
+            }
+
+            if ((_frames[_shown] ??= Scale(_shown, size.Item1, size.Item2)) is { } frame)
+                canvas.DrawImage(frame, box.Left, box.Top);
+        }
+
+        /// <summary>Ese fotograma a la medida de la caja, o null si no se puede o no se debe pintar.</summary>
+        private SKImage? Scale(int index, int width, int height)
+        {
+            // Los fotogramas escalados son de este widget y no de la caché, así que también cuentan:
+            // una imagen pequeña estirada a todo el panel ocupa lo que el panel.
+            if (width <= 0 || height <= 0 || (long)width * height * 4 * _frames.Length > WidgetImages.MaxBytes) return null;
+
+            SKImage? scaled = null;
+            WidgetImages.Use(_path, source =>
+            {
+                // El fichero ha cambiado desde que se montó el renderizador y ya no tiene este fotograma.
+                if (index >= source.Bitmaps.Count) return;
+
+                var bitmap = source.Bitmaps[index];
+                var target = Placement(_widget.Fit, bitmap.Width, bitmap.Height, width, height);
+
+                // Lo que se amplía al doble o más casi siempre es un icono o pixel art, y suavizado se
+                // vuelve borroso. Lo que se reduce, en cambio, necesita el filtro para no dentar.
+                var sampling = target.Width >= bitmap.Width * 2 && target.Height >= bitmap.Height * 2
+                    ? new SKSamplingOptions(SKFilterMode.Nearest, SKMipmapMode.None)
+                    : new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear);
+
+                using var surface = SKSurface.Create(new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Premul));
+                surface.Canvas.Clear(SKColors.Transparent);
+
+                // Sin copiar los píxeles: la imagen vive lo que dura este dibujo, dentro del candado.
+                using (var pixels = bitmap.PeekPixels())
+                using (var image = SKImage.FromPixels(pixels))
+                    surface.Canvas.DrawImage(image, target, sampling);
+
+                scaled = surface.Snapshot();
+            });
+            return scaled;
+        }
+
+        /// <summary>Suelta los fotogramas escalados, que ya no sirven para la caja de ahora.</summary>
+        private void Forget()
+        {
+            for (int i = 0; i < _frames.Length; i++)
+            {
+                _frames[i]?.Dispose();
+                _frames[i] = null;
+            }
         }
 
         public override void Dispose()
         {
-            foreach (var frame in _frames) frame.Dispose();
+            Forget();
             base.Dispose();
         }
     }
