@@ -144,6 +144,7 @@
   "nav.settings": "Settings",
   "panel.blits": "Rectangles",
   "panel.brightness": "Brightness",
+  "panel.brightness.unsupported": "This panel has no brightness control.",
   "panel.layout": "Layout",
   "panel.layout.blank": "None: the panel is blank",
   "panel.layout.random": "Random: a different one at each start",

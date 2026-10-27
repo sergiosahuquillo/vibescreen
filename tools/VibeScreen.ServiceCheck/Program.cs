@@ -170,6 +170,13 @@ try
     Check(recuperada.Brightness == 33 && recuperada.LayoutPath == @"C:\temas\uno.json" && !recuperada.ScreenOn,
         "la configuración sobrevive a un reinicio");
 
+    // La versión anterior rechaza los campos que no conoce: sin revisión forzada, el fichero tiene que
+    // seguir siendo uno que ella sepa leer.
+    Check(!File.ReadAllText(configPath).Contains("revision", StringComparison.OrdinalIgnoreCase),
+        "sin revisión forzada, el fichero no la menciona");
+    store.Save(new ServiceConfig { Revision = "RevA" });
+    Check(store.Load().Revision == "RevA", "y la forzada se guarda y se lee");
+
     File.WriteAllText(configPath, "{ esto no es json");
     Check(store.Load().Brightness == 50, "una configuración rota no impide arrancar");
     File.Delete(configPath);
@@ -694,6 +701,113 @@ catch (Exception e)
     Broke("El nombre de la tubería, cuando lo tiene el de antes", e);
 }
 
+Header("Un panel que no sabe hacerlo todo");
+try
+{
+
+    // Un panel que ni regula el brillo, ni gira, ni se apaga. No hay ninguno así implementado, y por
+    // eso mismo: el servicio tiene que respetar las capacidades antes de que llegue el primero.
+    var limitado = new FakeConnector
+    {
+        Capabilities = FakeConnector.Default with
+        {
+            Model = "Panel sin extras",
+            SupportsBrightness = false,
+            SupportsOrientation = false,
+            SupportsScreenPower = false,
+        },
+    };
+
+    string vertical = Path.Combine(temp, "vertical.json");
+    File.WriteAllText(vertical, """
+        {
+          "schema": 2,
+          "meta": { "name": "Vertical" },
+          "display": { "width": 320, "height": 480, "orientation": "portrait" },
+          "widgets": [
+            { "type": "text", "id": "temp", "rect": [0, 0, 200, 40], "sensor": "cpu/0/temperature/package",
+              "decimals": 1, "showUnit": false, "size": 24, "refreshMs": 100 }
+          ]
+        }
+        """);
+
+    var config = new MemoryConfigStore(new ServiceConfig { LayoutPath = layoutPath, Revision = "reva" });
+    await using (var host = new PanelHost(config, new CountingSensors("cpu/0/temperature/package"), limitado, NullLogger<PanelHost>.Instance) { LayoutRoot = temp })
+    {
+        host.Delay = (_, _) => Task.CompletedTask;
+        Check(host.GetStatus().Features is null, "sin panel, el estado no dice qué sabe hacer");
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+        var running = host.RunAsync(cts.Token);
+
+        // El layout de la configuración es apaisado y el panel no gira.
+        Check(await WaitUntil(() => limitado.Last is not null && host.GetStatus().State == ServiceState.Connected,
+                TimeSpan.FromSeconds(10)),
+            "conecta con un panel que no gira aunque el layout sea apaisado");
+        var panel = limitado.Last!;
+        Check(limitado.LastRevision == HardwareRevision.RevA, "la revisión forzada en la configuración llega al conector");
+        Check(panel.Orientation == Orientation.Portrait && panel.Blits == 0,
+              "no le pide que gire, y el layout que no encaja se queda sin pintar");
+        Check(host.GetStatus().Detail?.Code == "layout.panel-mismatch", "y el estado dice que el layout no encaja");
+        Check(panel.Brightness.Count == 0, "no le manda el brillo a un panel que no lo regula");
+
+        await host.SetBrightnessAsync(30);
+        Check(panel.Brightness.Count == 0 && config.Saved?.Brightness == 30,
+              "cambiar el brillo se guarda sin mandárselo");
+
+        var features = host.GetStatus().Features;
+        Check(features is { Brightness: false, Orientation: false, ScreenPower: false, Revision: "Simulated",
+                            PixelFormat: "Rgb565LittleEndian" },
+              "el estado dice lo que el panel no sabe hacer");
+
+        // Lo que llega a la ventana es lo mismo después de pasar por la tubería.
+        string json = JsonSerializer.Serialize(new ServiceResponse { Ok = true, Status = host.GetStatus() },
+                                               ServiceJsonContext.Default.ServiceResponse);
+        var leido = JsonSerializer.Deserialize(json, ServiceJsonContext.Default.ServiceResponse);
+        Check(leido?.Status?.Features == features, "las capacidades van y vuelven por el IPC");
+
+        await host.SetLayoutAsync(vertical);
+        Check(await WaitUntil(() => panel.Blits > 0 && host.GetStatus().State == ServiceState.Painting,
+                TimeSpan.FromSeconds(10)),
+            "un layout vertical sí lo pinta");
+
+        await host.SetScreenPowerAsync(false);
+        int clears = panel.Clears;
+        int blits = panel.Blits;
+        Check(panel.ScreenPower.Count == 0 && clears > 0, "apagar un panel que no se apaga lo deja en negro");
+        await Task.Delay(300);
+        Check(panel.Blits == blits, "y deja de pintarlo");
+
+        await host.SetScreenPowerAsync(true);
+        Check(panel.Blits > blits && panel.ScreenPower.Count == 0, "encenderlo lo vuelve a pintar entero");
+
+        await cts.CancelAsync();
+        await running;
+    }
+
+    // Y un nombre de revisión que no existe es un fallo del panel, que sale en el estado, no una caída.
+    var errata = new MemoryConfigStore(new ServiceConfig { Revision = "RevZ" });
+    var nunca = new FakeConnector();
+    await using (var host = new PanelHost(errata, new CountingSensors("x"), nunca, NullLogger<PanelHost>.Instance) { LayoutRoot = temp })
+    {
+        host.Delay = (_, _) => Task.Delay(10);
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+        var running = host.RunAsync(cts.Token);
+
+        Check(await WaitUntil(() => host.GetStatus().Detail?.Inner?.Code == "panel.revision-unknown",
+                TimeSpan.FromSeconds(10)),
+            "una revisión que no existe sale en el estado");
+        Check(nunca.Opens == 0, "y ni siquiera intenta abrir el panel");
+
+        await cts.CancelAsync();
+        await running;
+    }
+}
+catch (Exception e)
+{
+    Broke("Un panel que no sabe hacerlo todo", e);
+}
+
 Header("Escritura entera o nada");
 try
 {
@@ -769,7 +883,7 @@ sealed class MemoryConfigStore(ServiceConfig? initial = null) : IConfigStore
 /// <summary>Un panel que se puede quitar y poner.</summary>
 sealed class FakeConnector : IPanelConnector
 {
-    public static readonly DisplayCapabilities Capabilities = new()
+    public static readonly DisplayCapabilities Default = new()
     {
         Model = "Panel de mentira",
         Revision = HardwareRevision.Simulated,
@@ -777,6 +891,9 @@ sealed class FakeConnector : IPanelConnector
         NativeHeight = 480,
         ThroughputBytesPerSecond = 261_600,
     };
+
+    /// <summary>Lo que sabe hacer el panel que aparece. Por omisión, todo.</summary>
+    public DisplayCapabilities Capabilities { get; init; } = Default;
 
     /// <summary>Cuántos intentos de apertura fallan antes de que el panel aparezca.</summary>
     public int FailFirst { get; init; }
@@ -788,20 +905,26 @@ sealed class FakeConnector : IPanelConnector
     /// <summary>Si la última apertura pidió la pantalla encendida, que es lo que hace inicializar el panel.</summary>
     public bool? LastScreenOn { get; private set; }
 
+    /// <summary>La revisión que se pidió en la última apertura, la de la configuración.</summary>
+    public HardwareRevision? LastRevision { get; private set; }
+
     public ValueTask<PanelConnection> OpenAsync(
-        string? portName, Orientation orientation, bool screenOn, CancellationToken cancellationToken = default)
+        string? portName, HardwareRevision? revision, Orientation orientation, bool screenOn,
+        CancellationToken cancellationToken = default)
     {
         Opens++;
         LastScreenOn = screenOn;
+        LastRevision = revision;
         if (Opens <= FailFirst)
             throw new InvalidOperationException("No se ha encontrado ningún panel compatible.");
 
-        Last = new FakeDriver(orientation);
+        // Como DisplayDiscovery: un panel que no gira se abre en vertical, se le pida lo que se le pida.
+        Last = new FakeDriver(Capabilities, Capabilities.SupportsOrientation ? orientation : Orientation.Portrait);
         return ValueTask.FromResult(new PanelConnection(Last, "COM-prueba", Capabilities.Model));
     }
 }
 
-sealed class FakeDriver(Orientation orientation) : IDisplayDriver
+sealed class FakeDriver(DisplayCapabilities capabilities, Orientation orientation) : IDisplayDriver
 {
     public int Blits { get; private set; }
 
@@ -813,7 +936,10 @@ sealed class FakeDriver(Orientation orientation) : IDisplayDriver
 
     public bool Disposed { get; private set; }
 
-    public DisplayCapabilities Capabilities => FakeConnector.Capabilities;
+    /// <summary>Las veces que lo han limpiado.</summary>
+    public int Clears { get; private set; }
+
+    public DisplayCapabilities Capabilities { get; } = capabilities;
 
     public Orientation Orientation { get; private set; } = orientation;
 
@@ -829,6 +955,10 @@ sealed class FakeDriver(Orientation orientation) : IDisplayDriver
 
     public ValueTask SetOrientationAsync(Orientation value, CancellationToken cancellationToken = default)
     {
+        // Pedirle a un panel que no gira que gire es justo lo que el servicio no tiene que hacer.
+        if (!Capabilities.SupportsOrientation && value != Orientation.Portrait)
+            throw new InvalidOperationException("Este panel no gira.");
+
         Orientation = value;
         return ValueTask.CompletedTask;
     }
@@ -851,7 +981,11 @@ sealed class FakeDriver(Orientation orientation) : IDisplayDriver
         return ValueTask.CompletedTask;
     }
 
-    public ValueTask ClearAsync(CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
+    public ValueTask ClearAsync(CancellationToken cancellationToken = default)
+    {
+        Clears++;
+        return ValueTask.CompletedTask;
+    }
 
     /// <summary>Los encendidos y apagados que le han pedido después de abrirlo, en orden.</summary>
     public List<bool> ScreenPower { get; } = [];

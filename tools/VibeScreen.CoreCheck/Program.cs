@@ -1739,12 +1739,12 @@ try
     {
         // Sobre CDC-ACM los seis bytes de la respuesta pueden llegar en varias transferencias.
         var partida = new SplitTransport([[0x02], [0x02, 0x02], [0x02, 0x02, 0x02]]);
-        var caps480 = await RevADisplayProbe.IdentifySubModelAsync(partida);
+        var caps480 = await RevADisplayFamily.IdentifySubModelAsync(partida);
         Check(caps480.NativeWidth == 480 && caps480.NativeHeight == 800,
               $"una respuesta en tres trozos identifica el panel igual ({caps480.NativeWidth}x{caps480.NativeHeight})");
 
         var callada = new SplitTransport([]);
-        var caps320 = await RevADisplayProbe.IdentifySubModelAsync(callada);
+        var caps320 = await RevADisplayFamily.IdentifySubModelAsync(callada);
         Check(caps320.NativeWidth == 320 && caps320.NativeHeight == 480,
               "y el silencio sigue queriendo decir la 3.5\" de 320x480");
     }
@@ -1752,6 +1752,137 @@ try
 catch (Exception e)
 {
     Broke("Identificar el panel con la respuesta partida", e);
+}
+
+Header("Cada panel con su familia");
+try
+{
+
+    {
+        var revA = new RevADisplayFamily();
+        // La XuanFang de la revisión B lleva el mismo CH552T: por VID:PID la reconocería también la A.
+        var revB = new FakeFamily
+        {
+            Revision = HardwareRevision.RevB,
+            Matches = p => p.SerialNumber == "2017-2-25" ? MatchStrength.SerialNumber : null,
+        };
+
+        var turing = new SerialPortDescriptor
+        {
+            PortName = "COM3", VendorId = RevADisplayFamily.VendorId, ProductId = RevADisplayFamily.ProductId,
+            SerialNumber = "USB35INCHIPSV2",
+        };
+        var xuanfang = new SerialPortDescriptor
+        {
+            PortName = "COM5", VendorId = RevADisplayFamily.VendorId, ProductId = RevADisplayFamily.ProductId,
+            SerialNumber = "2017-2-25",
+        };
+        var sai = new SerialPortDescriptor { PortName = "COM1", VendorId = 0x0463, ProductId = 0xFFFF };
+        var ports = new FixedPorts(sai, turing, xuanfang);
+
+        var discovery = new DisplayDiscovery(ports, [revA, revB]);
+        var all = discovery.FindAll();
+        Check(all.Count == 2, $"un panel por puerto, aunque lo reconozcan dos familias ({all.Count})");
+        Check(all.Select(d => d.Port.PortName).SequenceEqual(["COM3", "COM5"]), "y en el orden en que aparecen");
+        Check(all[0].Family == revA && all[0].Strength == MatchStrength.SerialNumber,
+              "la Turing la reconoce la A por su número de serie");
+        Check(all[1].Family == revB, "y el número de serie de la B le gana al VID:PID que comparte con la A");
+
+        // Con el orden de las familias al revés, lo mismo: decide la seguridad, no quién va antes.
+        var reves = new DisplayDiscovery(ports, [revB, revA]).FindAll();
+        Check(reves.Single(d => d.Port.PortName == "COM5").Family == revB, "da igual en qué orden se registren");
+
+        var forzado = discovery.Find("COM9");
+        Check(forzado?.Family == revA && forzado.Strength == MatchStrength.Forced,
+              "un puerto forzado que nadie reconoce se abre con la primera familia");
+        var forzadoB = discovery.Find("COM9", HardwareRevision.RevB);
+        Check(forzadoB?.Family == revB, "y con la revisión forzada, con la de esa revisión");
+        Check(discovery.Find(null, HardwareRevision.RevB)?.Port.PortName == "COM5",
+              "sin puerto, la revisión forzada busca solo sus paneles");
+        Check(discovery.Find("COM5", HardwareRevision.RevA)?.Family == revA,
+              "y manda sobre la detección: forzar la A en el puerto de la B la abre como A");
+
+        NoticeInvalidOperationException? sinDriver = null;
+        try { discovery.Find(null, HardwareRevision.RevD); }
+        catch (NoticeInvalidOperationException e) { sinDriver = e; }
+        Check(sinDriver?.Notice.Code == "panel.revision-unsupported", "una revisión sin driver se dice, no se supone la A");
+    }
+
+    {
+        // La UsbPCMonitor de 5" lleva el número de serie de la 3.5": sin saludo se abría con el tamaño que no es.
+        var cinco = new SerialPortDescriptor { PortName = "COM4", SerialNumber = "USB35INCHIPS" };
+        var contesta = new SplitTransport([[0x02, 0x02, 0x02, 0x02, 0x02, 0x02]]);
+        var discovery = new DisplayDiscovery(new FixedPorts(cinco), openTransport: _ => contesta);
+
+        Check(discovery.FindFirst()?.Capabilities.NativeHeight == 480, "al detectar, aún se supone la 3.5\"");
+        await using var driver = await discovery.OpenAsync("COM4");
+        Check(driver is RevADisplayDriver, "al abrir, el driver es el de su familia");
+        Check(driver.Capabilities.NativeWidth == 480 && driver.Capabilities.NativeHeight == 800,
+              $"y con el tamaño que dice el saludo ({driver.Capabilities.NativeWidth}x{driver.Capabilities.NativeHeight})");
+        Check(driver.Capabilities.Model.Contains("UsbPCMonitor", StringComparison.Ordinal), "y su modelo");
+
+        // La Turing 3.5" de pruebas contesta como la UsbPCMonitor de 320x480: el tamaño es el mismo, y
+        // el nombre tiene que seguir siendo el suyo.
+        var turing = new SerialPortDescriptor { PortName = "COM3", SerialNumber = "USB35INCHIPSV2" };
+        var habla = new DisplayDiscovery(new FixedPorts(turing),
+                                         openTransport: _ => new SplitTransport([[0x01, 0x01, 0x01, 0x01, 0x01, 0x01]]));
+        await using var suya = await habla.OpenAsync("COM3");
+        Check(suya.Capabilities.Model == "Turing Smart Screen 3.5\"",
+              $"un saludo que confirma el tamaño no le cambia el nombre ({suya.Capabilities.Model})");
+    }
+
+    {
+        var quieto = new FakeFamily
+        {
+            Revision = HardwareRevision.RevC,
+            Capabilities = caps with { SupportsOrientation = false },
+            Matches = _ => MatchStrength.UsbId,
+        };
+        var discovery = new DisplayDiscovery(new FixedPorts(new SerialPortDescriptor { PortName = "COM7" }), [quieto],
+                                             _ => new SplitTransport([]));
+        await using var driver = await discovery.OpenAsync("COM7", Orientation.Landscape);
+        Check(quieto.Identified.SequenceEqual(["COM7"]), "al abrir le pregunta el submodelo a su familia");
+        Check(driver.Orientation == Orientation.Portrait, "un panel que no gira se abre en vertical aunque se pida apaisado");
+
+        // Si el saludo falla, el puerto no se queda abierto para el siguiente intento.
+        var roto = new FakeFamily { Revision = HardwareRevision.RevC, Matches = _ => MatchStrength.UsbId, FailIdentify = true };
+        var puerto = new SplitTransport([]);
+        var conFallo = new DisplayDiscovery(new FixedPorts(new SerialPortDescriptor { PortName = "COM8" }), [roto],
+                                            _ => puerto);
+        Exception? fallo = null;
+        try { await conFallo.OpenAsync("COM8"); }
+        catch (IOException e) { fallo = e; }
+        Check(fallo is not null && !puerto.IsOpen, "si preguntar el submodelo falla, el puerto se cierra");
+    }
+}
+catch (Exception e)
+{
+    Broke("Cada panel con su familia", e);
+}
+
+Header("Los píxeles salen como los pide el panel");
+try
+{
+
+    {
+        var alReves = caps with { PixelFormat = PixelFormat.Rgb565BigEndian };
+        var driver = new RecordingDriver(alReves, Orientation.Landscape);
+        var layout = LayoutLoader.Parse(Minimal(CpuTemp), "prueba");
+        using var runner = new LayoutRunner(driver, layout, loads);
+        await runner.StartAsync(TimeSpan.Zero);
+
+        var bounds = runner.Renderer.Surface.Bounds;
+        byte[] enviado = driver.Blits[0].Pixels;
+        Check(enviado.AsSpan().SequenceEqual(runner.Renderer.Surface.Extract(bounds, PixelFormat.Rgb565BigEndian)),
+              "el runner codifica en el formato del panel");
+        Check(!enviado.AsSpan().SequenceEqual(runner.Renderer.Surface.Extract(bounds, PixelFormat.Rgb565LittleEndian)),
+              "y no en el de la revisión A");
+        Check(runner.BytesSent == alReves.ByteCount(bounds), "y cuenta los bytes con él");
+    }
+}
+catch (Exception e)
+{
+    Broke("Los píxeles salen como los pide el panel", e);
 }
 
 Header("Un panel que deja de contestar no cuelga el bucle");
@@ -2120,6 +2251,57 @@ sealed class FakeSensors : ISensorProvider
             Kind = sensor.Kind, Name = id, NativeId = id,
         },
     };
+}
+
+/// <summary>Los puertos que se le digan, como si los hubiera enumerado el sistema.</summary>
+sealed class FixedPorts(params SerialPortDescriptor[] ports) : ISerialPortEnumerator
+{
+    public IReadOnlyList<SerialPortDescriptor> List() => ports;
+}
+
+/// <summary>Una familia de mentira: reconoce lo que diga <see cref="Matches"/> y abre un panel que apunta.</summary>
+sealed class FakeFamily : IDisplayFamily
+{
+    public required HardwareRevision Revision { get; init; }
+
+    public required Func<SerialPortDescriptor, MatchStrength?> Matches { get; init; }
+
+    public DisplayCapabilities Capabilities { get; init; } = new()
+    {
+        Model = "Familia de mentira", Revision = HardwareRevision.Simulated,
+        NativeWidth = 320, NativeHeight = 480, ThroughputBytesPerSecond = 261_600,
+    };
+
+    /// <summary>Que preguntar el submodelo falle como falla un panel que se desenchufa a medias.</summary>
+    public bool FailIdentify { get; init; }
+
+    /// <summary>Los puertos a los que se les ha preguntado el submodelo, en orden.</summary>
+    public List<string> Identified { get; } = [];
+
+    public DisplayCapabilities AssumedCapabilities => Capabilities;
+
+    public IEnumerable<DiscoveredDisplay> Probe(IReadOnlyList<SerialPortDescriptor> ports)
+    {
+        foreach (var port in ports)
+        {
+            if (Matches(port) is not { } strength) continue;
+            yield return new DiscoveredDisplay
+            {
+                Port = port, Capabilities = Capabilities, MatchedBy = "prueba", Family = this, Strength = strength,
+            };
+        }
+    }
+
+    public async ValueTask<DisplayCapabilities> IdentifyAsync(
+        DiscoveredDisplay display, IDisplayTransport transport, CancellationToken cancellationToken = default)
+    {
+        if (!transport.IsOpen) await transport.OpenAsync(cancellationToken);
+        Identified.Add(display.Port.PortName);
+        return FailIdentify ? throw new IOException("El panel se ha ido a mitad del saludo.") : Capabilities;
+    }
+
+    public IDisplayDriver CreateDriver(IDisplayTransport transport, DisplayCapabilities capabilities) =>
+        new RecordingDriver(capabilities, Orientation.Portrait);
 }
 
 /// <summary>Panel de mentira que apunta cada rectángulo que recibe.</summary>

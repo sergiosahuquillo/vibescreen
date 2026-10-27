@@ -22,6 +22,12 @@ if (!TryGetOrientation(out var orientation))
                             "Usa portrait, landscape, reverseportrait o reverselandscape.");
     return 1;
 }
+if (!TryGetRevision(out var revision))
+{
+    Console.Error.WriteLine($"Revisión no válida: «{GetOption("--revision")}». " +
+                            $"Las que hay: {string.Join(", ", DisplayDiscovery.Supported.Select(f => f.Revision))}.");
+    return 1;
+}
 
 try
 {
@@ -73,6 +79,17 @@ bool TryGetOrientation(out Orientation value)
     return !HasOption("--orientation") || StrictEnum.TryParse(GetOption("--orientation"), out value);
 }
 
+// Sin --revision, la que se detecte. Con ella, solo cuenta esa familia, como con «revision» en la
+// configuración del servicio.
+bool TryGetRevision(out HardwareRevision? value)
+{
+    value = null;
+    if (!HasOption("--revision")) return true;
+    if (!StrictEnum.TryParse(GetOption("--revision"), out HardwareRevision parsed)) return false;
+    value = parsed;
+    return true;
+}
+
 int Help()
 {
     Console.WriteLine("""
@@ -102,6 +119,7 @@ int Help()
 
         Opciones:
           --port COM3 | /dev/ttyACM0   Fuerza el puerto
+          --revision reva              Fuerza la revisión del panel
           --orientation portrait|landscape|reverseportrait|reverselandscape
           --seconds N                  Con run, para al cabo de N segundos
 
@@ -135,33 +153,33 @@ int Detect()
     {
         Console.WriteLine($"  {d.Capabilities.Model} en {d.Port.PortName}");
         Console.WriteLine($"     identificado por: {d.MatchedBy}");
-        Console.WriteLine($"     {d.Capabilities.NativeWidth}x{d.Capabilities.NativeHeight}, " +
-                          $"fotograma completo {d.Capabilities.FullFrameBytes:N0} B");
+        Console.WriteLine($"     revisión {d.Family.Revision}, se supone de {d.Capabilities.NativeWidth}x" +
+                          $"{d.Capabilities.NativeHeight} hasta preguntarle el submodelo (info)");
     }
     return 0;
 }
 
 async Task<int> InfoAsync()
 {
-    var discovery = new DisplayDiscovery();
-    var display = port is null
-        ? discovery.FindFirst()
-        : discovery.FindAll().FirstOrDefault(d => d.Port.PortName == port);
-
-    if (display is null && port is null)
+    // Con --port y sin panel reconocido en él, se pregunta igual con la familia que toque: es lo que
+    // haría el servicio con ese mismo puerto forzado.
+    var display = new DisplayDiscovery().Find(port, revision);
+    if (display is null)
     {
         Console.Error.WriteLine("No se ha encontrado ningún panel. Usa --port.");
         return 1;
     }
 
-    string portName = display?.Port.PortName ?? port!;
+    string portName = display.Port.PortName;
     await using var transport = new SerialDisplayTransport(portName);
-    var caps = await RevADisplayProbe.IdentifySubModelAsync(transport);
+    var caps = await display.Family.IdentifyAsync(display, transport);
 
     Console.WriteLine($"  Puerto:      {portName}");
+    Console.WriteLine($"  Reconocido:  por {display.MatchedBy}");
     Console.WriteLine($"  Modelo:      {caps.Model}");
     Console.WriteLine($"  Revisión:    {caps.Revision}");
     Console.WriteLine($"  Resolución:  {caps.NativeWidth}x{caps.NativeHeight}");
+    Console.WriteLine($"  Píxeles:     {caps.PixelFormat}");
     Console.WriteLine($"  Fotograma:   {caps.FullFrameBytes:N0} B");
     Console.WriteLine($"  Caudal:      {caps.ThroughputBytesPerSecond:N0} B/s (medido en Fase 0)");
     Console.WriteLine($"  Refresco total: {(double)caps.FullFrameBytes / caps.ThroughputBytesPerSecond:F2} s");
@@ -170,7 +188,7 @@ async Task<int> InfoAsync()
 
 async Task<int> ClearAsync()
 {
-    await using var driver = await new DisplayDiscovery().OpenAsync(port, orientation);
+    await using var driver = await new DisplayDiscovery().OpenAsync(port, orientation, revision: revision);
     await driver.ClearAsync();
     Console.WriteLine("Pantalla limpia.");
     return 0;
@@ -183,7 +201,7 @@ async Task<int> BrightnessAsync()
         Console.Error.WriteLine("Uso: vibescreen brightness <0-100>");
         return 1;
     }
-    await using var driver = await new DisplayDiscovery().OpenAsync(port, orientation);
+    await using var driver = await new DisplayDiscovery().OpenAsync(port, orientation, revision: revision);
     await driver.SetBrightnessAsync(percent);
     Console.WriteLine($"Brillo al {percent}%.");
     return 0;
@@ -192,14 +210,14 @@ async Task<int> BrightnessAsync()
 async Task<int> ScreenPowerAsync(bool on)
 {
     // Inicializar ya deja la pantalla en el estado pedido, así que apagar no pasa por encenderla.
-    await using var driver = await new DisplayDiscovery().OpenAsync(port, orientation, screenOn: on);
+    await using var driver = await new DisplayDiscovery().OpenAsync(port, orientation, screenOn: on, revision: revision);
     Console.WriteLine(on ? "Pantalla encendida." : "Pantalla apagada.");
     return 0;
 }
 
 async Task<int> PatternAsync()
 {
-    await using var driver = await new DisplayDiscovery().OpenAsync(port, orientation);
+    await using var driver = await new DisplayDiscovery().OpenAsync(port, orientation, revision: revision);
     using var surface = new PanelSurface(driver.Width, driver.Height);
 
     surface.Clear(new SKColor(12, 14, 20));
@@ -230,10 +248,10 @@ async Task<int> PatternAsync()
 
     var sw = Stopwatch.StartNew();
     var full = new PixelRect(0, 0, driver.Width, driver.Height);
-    await driver.BlitAsync(surface.ExtractRgb565(full), full);
+    await driver.BlitAsync(surface.Extract(full, driver.Capabilities.PixelFormat), full);
     sw.Stop();
 
-    int bytes = Rgb565.ByteCount(full);
+    int bytes = driver.Capabilities.ByteCount(full);
     Console.WriteLine($"Carta de ajuste enviada: {bytes:N0} B en {sw.Elapsed.TotalSeconds:F3} s " +
                       $"({bytes / sw.Elapsed.TotalSeconds / 1024:F1} KiB/s)");
     return 0;
@@ -241,7 +259,7 @@ async Task<int> PatternAsync()
 
 async Task<int> BenchAsync()
 {
-    await using var driver = await new DisplayDiscovery().OpenAsync(port, orientation);
+    await using var driver = await new DisplayDiscovery().OpenAsync(port, orientation, revision: revision);
     Console.WriteLine($"Panel {driver.Width}x{driver.Height} en {driver.Orientation}");
     Console.WriteLine();
 
@@ -254,7 +272,7 @@ async Task<int> BenchAsync()
     foreach (var (w, h) in sizes)
     {
         var rect = new PixelRect(0, 0, w, h);
-        var pixels = new byte[Rgb565.ByteCount(rect)];
+        var pixels = new byte[driver.Capabilities.ByteCount(rect)];
         Random.Shared.NextBytes(pixels);
 
         double best = double.MaxValue;
@@ -280,7 +298,7 @@ async Task<int> BenchAsync()
     Console.WriteLine();
     Console.WriteLine($"  Coste fijo por comando: {intercept * 1000:F2} ms");
     Console.WriteLine($"  Caudal asintótico:      {1 / slope:N0} B/s");
-    Console.WriteLine($"  Referencia Fase 0:      {RevADisplayProbe.MeasuredThroughputBytesPerSecond:N0} B/s (Python)");
+    Console.WriteLine($"  Referencia Fase 0:      {RevADisplayFamily.MeasuredThroughputBytesPerSecond:N0} B/s (Python)");
 
     await driver.ClearAsync();
     return 0;
@@ -401,7 +419,7 @@ async Task<int> RunLayoutAsync()
     foreach (var warning in LayoutInspector.Warnings(layout, sensors))
         Console.Error.WriteLine($"Aviso: {warning}");
 
-    await using var driver = await new DisplayDiscovery().OpenAsync(port, layout.Display.Orientation);
+    await using var driver = await new DisplayDiscovery().OpenAsync(port, layout.Display.Orientation, revision: revision);
     if (driver.Width != layout.Display.Width || driver.Height != layout.Display.Height)
     {
         Console.Error.WriteLine($"El layout es para {layout.Display.Width}x{layout.Display.Height} y el panel mide " +

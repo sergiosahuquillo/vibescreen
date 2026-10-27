@@ -22,6 +22,13 @@ public sealed class RevADisplayDriver : IDisplayDriver
         ArgumentNullException.ThrowIfNull(capabilities);
         ArgumentOutOfRangeException.ThrowIfLessThan(chunkSize, 1);
 
+        // El panel pinta los bytes tal cual le llegan: con otro formato no fallaría, saldría con los
+        // colores cambiados, y eso no lo delata nada.
+        if (capabilities.PixelFormat != PixelFormat.Rgb565LittleEndian)
+            throw new ArgumentException(
+                $"La revisión A solo entiende {PixelFormat.Rgb565LittleEndian}, no {capabilities.PixelFormat}.",
+                nameof(capabilities));
+
         _transport = transport;
         Capabilities = capabilities;
         _chunkSize = chunkSize;
@@ -129,7 +136,7 @@ public sealed class RevADisplayDriver : IDisplayDriver
             throw new ArgumentOutOfRangeException(nameof(rect), rect,
                 $"El rectángulo se sale del panel ({Width}x{Height} en {Orientation}).");
 
-        int expected = Rgb565.ByteCount(rect);
+        int expected = Capabilities.ByteCount(rect);
         if (pixels.Length != expected)
             throw new ArgumentException(
                 $"Se esperaban {expected} bytes para {rect} y llegaron {pixels.Length}.", nameof(pixels));

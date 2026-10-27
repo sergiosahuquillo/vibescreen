@@ -12,6 +12,7 @@ using Avalonia.VisualTree;
 using VibeScreen.App.Localization;
 using VibeScreen.App.Theme;
 using VibeScreen.Contracts;
+using VibeScreen.Core;
 using VibeScreen.Core.Drivers;
 using VibeScreen.Core.Layout;
 using VibeScreen.Core.Rendering;
@@ -21,6 +22,7 @@ using static VibeScreen.Protocol.Display.OrientationExtensions;
 using DisplayCapabilities = VibeScreen.Protocol.Display.DisplayCapabilities;
 using HardwareRevision = VibeScreen.Protocol.Display.HardwareRevision;
 using PanelOrientation = VibeScreen.Protocol.Display.Orientation;
+using PixelFormat = VibeScreen.Protocol.Display.PixelFormat;
 using PixelRect = VibeScreen.Protocol.Display.PixelRect;
 
 namespace VibeScreen.App.Views;
@@ -141,7 +143,13 @@ public sealed class EditorView : UserControl, IDisposable
     /// </remarks>
     private readonly Dictionary<string, (bool There, TimeSpan At)> _fileMemo = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, (ImageProbe? Probe, TimeSpan At)> _probeMemo = new(StringComparer.OrdinalIgnoreCase);
-    private int _throughput = RevADisplayProbe.MeasuredThroughputBytesPerSecond;
+    private int _throughput = RevADisplayFamily.MeasuredThroughputBytesPerSecond;
+
+    /// <summary>Cómo cuenta los bytes el panel conectado. Hasta saberlo, como la revisión A.</summary>
+    private PixelFormat _pixelFormat = PixelFormat.Rgb565LittleEndian;
+
+    /// <summary>La forma del panel conectado, o null mientras no se sepa. Es la de un tema nuevo.</summary>
+    private (int Width, int Height, PanelOrientation Orientation)? _panelShape;
 
     public EditorView(ServiceLink service, RemoteSensorProvider sensors)
     {
@@ -263,11 +271,23 @@ public sealed class EditorView : UserControl, IDisposable
 
     public void OnStatus(ServiceStatus? status)
     {
+        bool bandwidth = false;
         if (status?.ThroughputBytesPerSecond is > 0 and var throughput && throughput != _throughput)
         {
             _throughput = throughput;
-            ShowBandwidth();
+            bandwidth = true;
         }
+
+        if (StrictEnum.TryParse(status?.Features?.PixelFormat, out PixelFormat format) && format != _pixelFormat)
+        {
+            _pixelFormat = format;
+            bandwidth = true;
+        }
+
+        if (bandwidth) ShowBandwidth();
+
+        if (status is { Width: > 0, Height: > 0 } && StrictEnum.TryParse(status.Orientation, out PanelOrientation orientation))
+            _panelShape = (status.Width, status.Height, orientation);
 
         // Antes de cualquier salida: hace falta saber siempre qué hay en el panel, no solo la primera
         // vez, para que borrar un tema sepa si le está quitando al panel lo que está pintando.
@@ -275,11 +295,39 @@ public sealed class EditorView : UserControl, IDisposable
 
         // La primera vez que se sabe qué está pintando el panel, se abre eso: quien entra al editor
         // casi siempre viene a retocar el layout que tiene delante, no a empezar uno en blanco.
-        if (_offered || _name is not null || _widgets.Count > 0) return;
-        if (_painting is not { } painting) return;
+        if (!_offered && _name is null && _widgets.Count == 0 && _painting is { } painting)
+        {
+            _offered = true;
+            Open(painting);
+            return;
+        }
 
-        _offered = true;
-        Open(painting);
+        FitBlankToPanel();
+    }
+
+    /// <summary>
+    /// Le da a un tema en blanco y sin tocar la forma del panel conectado.
+    /// </summary>
+    /// <remarks>
+    /// El editor arrancaba siempre en 480x320 apaisado, que es la Turing 3.5" de quien lo escribió: con
+    /// otro panel, el primer tema salía de un tamaño que el servicio luego no quería pintar. Solo con
+    /// uno sin tocar, porque cambiarle el tamaño a lo que alguien está haciendo no es ayudar.
+    /// </remarks>
+    private void FitBlankToPanel()
+    {
+        if (_panelShape is not { } shape || _name is not null || _widgets.Count > 0 || _dirty) return;
+
+        var display = _layout.Display;
+        if (display.Width == shape.Width && display.Height == shape.Height && display.Orientation == shape.Orientation)
+            return;
+
+        display.Width = shape.Width;
+        display.Height = shape.Height;
+        display.Orientation = shape.Orientation;
+        _rebuild = true;
+        ShowDisplayProperties();
+        ShowBandwidth();
+        Render();
     }
 
     /// <summary>Deja un sensor preparado en el buscador, desde el explorador.</summary>
@@ -778,10 +826,15 @@ public sealed class EditorView : UserControl, IDisposable
         ShowMessage(Loc.Empty);
     }
 
-    /// <summary>Deja el editor con un tema vacío del tamaño del que había. No pregunta nada.</summary>
+    /// <summary>
+    /// Deja el editor con un tema vacío del tamaño del panel conectado o, sin panel, del que había. No
+    /// pregunta nada.
+    /// </summary>
     private void Blank()
     {
-        _layout = NewLayout(_layout.Display.Width, _layout.Display.Height, _layout.Display.Orientation);
+        var (width, height, orientation) = _panelShape
+            ?? (_layout.Display.Width, _layout.Display.Height, _layout.Display.Orientation);
+        _layout = NewLayout(width, height, orientation);
         _widgets = [];
         _layout.Widgets = _widgets;
         _name = null;
@@ -1806,6 +1859,7 @@ public sealed class EditorView : UserControl, IDisposable
             NativeWidth = _layout.Display.Width,
             NativeHeight = _layout.Display.Height,
             ThroughputBytesPerSecond = _throughput,
+            PixelFormat = _pixelFormat,
         };
 
         var report = BandwidthBudget.Analyze(LayoutInspector.Consumers(_layout, ImageThere), capabilities);

@@ -144,6 +144,7 @@
   "nav.settings": "Ajustes",
   "panel.blits": "Rectángulos",
   "panel.brightness": "Brillo",
+  "panel.brightness.unsupported": "Este panel no regula el brillo.",
   "panel.layout": "Layout",
   "panel.layout.blank": "Ninguno: el panel está en blanco",
   "panel.layout.random": "Aleatorio: otro en cada arranque",

@@ -13,8 +13,10 @@ public sealed record PanelConnection(IDisplayDriver Driver, string PortName, str
 /// </summary>
 public interface IPanelConnector
 {
+    /// <param name="revision">La revisión, si se ha forzado en la configuración. Sin ella, la que se detecte.</param>
     ValueTask<PanelConnection> OpenAsync(
         string? portName,
+        HardwareRevision? revision,
         Orientation orientation,
         bool screenOn,
         CancellationToken cancellationToken = default);
@@ -27,6 +29,7 @@ public sealed class SerialPanelConnector(DisplayDiscovery? discovery = null) : I
 
     public async ValueTask<PanelConnection> OpenAsync(
         string? portName,
+        HardwareRevision? revision,
         Orientation orientation,
         bool screenOn,
         CancellationToken cancellationToken = default)
@@ -34,7 +37,7 @@ public sealed class SerialPanelConnector(DisplayDiscovery? discovery = null) : I
         // Se vuelve a detectar en cada intento a propósito: un RESET del panel le cambia el puerto COM,
         // así que el de la conexión anterior puede que ya no exista. Pero una sola vez por intento:
         // buscar y abrir por separado enumeraba los puertos dos veces.
-        var display = _discovery.Find(portName)
+        var display = _discovery.Find(portName, revision)
                       ?? throw new NoticeInvalidOperationException(Notice.Of("panel.not-found"));
 
         var driver = await _discovery.OpenAsync(display, orientation, screenOn, cancellationToken).ConfigureAwait(false);

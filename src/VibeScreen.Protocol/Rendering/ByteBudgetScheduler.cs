@@ -26,7 +26,8 @@ public sealed class ByteBudgetScheduler
         public required PixelRect Rect { get; set; }
         public required int Priority { get; set; }
         public required long Sequence { get; init; }
-        public int Bytes => Rgb565.ByteCount(Rect);
+        public required PixelFormat Format { get; init; }
+        public int Bytes => Format.ByteCount(Rect);
     }
 
     /// <summary>
@@ -74,13 +75,19 @@ public sealed class ByteBudgetScheduler
 
     private readonly double _bytesPerTickSecond;
     private readonly double _burstCapBytes;
+    private readonly PixelFormat _format;
     private double _available;
     private long _sequence;
 
     /// <param name="bytesPerSecond">Caudal del panel. Sale de <see cref="DisplayCapabilities.ThroughputBytesPerSecond"/>.</param>
     /// <param name="utilization">Fracción del enlace que se permite usar, de 0 a 1. Dejar margen mantiene el panel receptivo.</param>
     /// <param name="maxBurstSeconds">Cuánto presupuesto sin gastar se puede acumular.</param>
-    public ByteBudgetScheduler(int bytesPerSecond, double utilization = DefaultUtilization, double maxBurstSeconds = 0.5)
+    /// <param name="format">
+    /// Cómo viajan los píxeles, que es lo que dice cuántos bytes cuesta cada rectángulo. Sale de
+    /// <see cref="DisplayCapabilities.PixelFormat"/>.
+    /// </param>
+    public ByteBudgetScheduler(int bytesPerSecond, double utilization = DefaultUtilization, double maxBurstSeconds = 0.5,
+                               PixelFormat format = PixelFormat.Rgb565LittleEndian)
     {
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(bytesPerSecond, 0);
         if (utilization is <= 0 or > 1)
@@ -91,6 +98,7 @@ public sealed class ByteBudgetScheduler
         Utilization = utilization;
         _bytesPerTickSecond = bytesPerSecond * utilization;
         _burstCapBytes = _bytesPerTickSecond * maxBurstSeconds;
+        _format = format;
     }
 
     public int BytesPerSecond { get; }
@@ -120,7 +128,7 @@ public sealed class ByteBudgetScheduler
         }
         else
         {
-            _pending[widgetId] = new Pending { Rect = rect, Priority = priority, Sequence = _sequence++ };
+            _pending[widgetId] = new Pending { Rect = rect, Priority = priority, Sequence = _sequence++, Format = _format };
         }
     }
 

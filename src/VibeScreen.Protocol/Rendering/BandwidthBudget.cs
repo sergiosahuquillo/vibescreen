@@ -3,10 +3,15 @@ using VibeScreen.Protocol.Display;
 namespace VibeScreen.Protocol.Rendering;
 
 /// <summary>Un widget visto como consumidor de ancho de banda: su caja por su frecuencia de refresco.</summary>
-public readonly record struct WidgetBandwidth(string WidgetId, PixelRect Rect, double RefreshHz)
+/// <param name="Format">
+/// Cómo viajan sus píxeles. Lo pone <see cref="BandwidthBudget.Analyze"/> con el del panel, que es quien lo
+/// sabe; el widget por sí solo no.
+/// </param>
+public readonly record struct WidgetBandwidth(
+    string WidgetId, PixelRect Rect, double RefreshHz, PixelFormat Format = PixelFormat.Rgb565LittleEndian)
 {
     /// <summary>El coste de un widget es su caja contenedora, no su contenido.</summary>
-    public double BytesPerSecond => Rgb565.ByteCount(Rect) * RefreshHz;
+    public double BytesPerSecond => Format.ByteCount(Rect) * RefreshHz;
 }
 
 /// <summary>Reparto del enlace entre los widgets de un layout, ordenado de mayor a menor consumo.</summary>
@@ -57,7 +62,8 @@ public static class BandwidthBudget
         if (utilization is <= 0 or > 1)
             throw new ArgumentOutOfRangeException(nameof(utilization), utilization, "La utilización va de 0 (excluido) a 1.");
 
-        var ordered = widgets.OrderByDescending(w => w.BytesPerSecond).ToList();
+        var format = capabilities.PixelFormat;
+        var ordered = widgets.Select(w => w with { Format = format }).OrderByDescending(w => w.BytesPerSecond).ToList();
         return new BandwidthReport
         {
             RequiredBytesPerSecond = ordered.Sum(w => w.BytesPerSecond),

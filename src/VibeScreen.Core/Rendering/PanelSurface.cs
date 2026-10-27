@@ -8,7 +8,7 @@ namespace VibeScreen.Core.Rendering;
 /// </summary>
 /// <remarks>
 /// Es la pieza que hace que la vista previa del editor sea idéntica al panel por construcción.
-/// El servicio dibuja aquí y extrae rectángulos en RGB565 para el cable; el editor dibuja con
+/// El servicio dibuja aquí y extrae rectángulos en el formato del panel para el cable; el editor dibuja con
 /// este mismo código y muestra el mapa de bits en pantalla. Un solo camino de render, sin
 /// posibilidad de que la vista previa y el panel se separen.
 /// </remarks>
@@ -24,7 +24,7 @@ public sealed class PanelSurface : IDisposable
         Width = width;
         Height = height;
         // Bgra8888 es el formato nativo de Skia en máquinas little-endian: así la conversión
-        // a RGB565 lee memoria contigua sin ningún paso intermedio.
+        // al formato del panel lee memoria contigua sin ningún paso intermedio.
         _bitmap = new SKBitmap(new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Premul));
         Canvas = new SKCanvas(_bitmap);
     }
@@ -39,22 +39,22 @@ public sealed class PanelSurface : IDisposable
     public PixelRect Bounds => new(0, 0, Width, Height);
 
     /// <summary>
-    /// Extrae un rectángulo ya codificado en RGB565 little-endian, listo para
+    /// Extrae un rectángulo ya codificado en el formato del panel, listo para
     /// <see cref="IDisplayDriver.BlitAsync"/>.
     /// </summary>
-    public byte[] ExtractRgb565(in PixelRect rect)
+    public byte[] Extract(in PixelRect rect, PixelFormat format)
     {
         var clamped = rect.ClampTo(Width, Height);
         if (clamped.IsEmpty)
             throw new ArgumentOutOfRangeException(nameof(rect), rect, "El rectángulo queda fuera del lienzo.");
 
-        var destination = new byte[Rgb565.ByteCount(clamped)];
-        ExtractRgb565(clamped, destination);
+        var destination = new byte[format.ByteCount(clamped)];
+        Extract(clamped, format, destination);
         return destination;
     }
 
     /// <summary>Variante sin reservar memoria: escribe en un búfer que proporciona quien llama.</summary>
-    public void ExtractRgb565(in PixelRect rect, Span<byte> destination)
+    public void Extract(in PixelRect rect, PixelFormat format, Span<byte> destination)
     {
         var clamped = rect.ClampTo(Width, Height);
         if (clamped.IsEmpty)
@@ -72,7 +72,7 @@ public sealed class PanelSurface : IDisposable
         int start = (clamped.Y * rowBytes) + (clamped.X * 4);
         int length = ((clamped.Height - 1) * rowBytes) + (clamped.Width * 4);
 
-        Rgb565.FromBgra8888(all.Slice(start, length), rowBytes, clamped.Width, clamped.Height, destination);
+        format.FromBgra8888(all.Slice(start, length), rowBytes, clamped.Width, clamped.Height, destination);
     }
 
     public void Clear(SKColor color) => Canvas.Clear(color);

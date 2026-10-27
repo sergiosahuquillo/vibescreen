@@ -195,6 +195,9 @@ public sealed record ServiceStatus
     /// <summary>Caudal del panel en bytes por segundo. Es lo que el editor compara con lo que pide un tema.</summary>
     public int ThroughputBytesPerSecond { get; set; }
 
+    /// <summary>Lo que sabe hacer el panel conectado, o null si no hay ninguno.</summary>
+    public PanelFeatures? Features { get; set; }
+
     public int SensorCount { get; set; }
 
     /// <summary>Lo que falta y se nota: sin ring0, sin PawnIO, sensores ausentes del layout.</summary>
@@ -209,6 +212,29 @@ public sealed record ServiceStatus
     public int Reconnects { get; set; }
 
     public long UptimeSeconds { get; set; }
+}
+
+/// <summary>
+/// Lo que sabe hacer el panel conectado, para que la ventana no ofrezca lo que no hay y el editor
+/// cuente los bytes como los cuenta el panel.
+/// </summary>
+/// <remarks>
+/// Con los nombres de los enumerados como texto, porque los contratos no dependen del protocolo: quien
+/// los quiera como enumerado los lee con <c>StrictEnum</c>.
+/// </remarks>
+public sealed record PanelFeatures
+{
+    /// <summary>Revisión del hardware: <c>RevA</c>.</summary>
+    public required string Revision { get; set; }
+
+    /// <summary>Cómo viaja un píxel por el cable: <c>Rgb565LittleEndian</c>.</summary>
+    public required string PixelFormat { get; set; }
+
+    public bool Brightness { get; set; }
+
+    public bool Orientation { get; set; }
+
+    public bool ScreenPower { get; set; }
 }
 
 public sealed record SensorInfo
