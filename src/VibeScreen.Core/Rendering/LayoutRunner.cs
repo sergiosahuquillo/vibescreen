@@ -19,6 +19,7 @@ public sealed class LayoutRunner : IDisposable
     private readonly IDisplayDriver _driver;
     private readonly ISensorProvider _sensors;
     private readonly ByteBudgetScheduler _scheduler;
+    private readonly PixelFormat _format;
 
     /// <summary>
     /// De dónde salen los píxeles de cada envío.
@@ -48,8 +49,11 @@ public sealed class LayoutRunner : IDisposable
         _driver = driver;
         _sensors = sensors;
         Renderer = new LayoutRenderer(layout, language: language);
-        _scheduler = new ByteBudgetScheduler(driver.Capabilities.ThroughputBytesPerSecond, utilization);
-        _pixels = new byte[Rgb565.ByteCount(Renderer.Surface.Bounds)];
+        // El formato, del panel y no supuesto: es lo que dice cuántos bytes cuesta cada envío y en qué
+        // orden van, y un panel que lo pida distinto no tiene que notarse aquí.
+        _format = driver.Capabilities.PixelFormat;
+        _scheduler = new ByteBudgetScheduler(driver.Capabilities.ThroughputBytesPerSecond, utilization, format: _format);
+        _pixels = new byte[_format.ByteCount(Renderer.Surface.Bounds)];
     }
 
     public LayoutRenderer Renderer { get; }
@@ -100,9 +104,9 @@ public sealed class LayoutRunner : IDisposable
 
     private async ValueTask SendAsync(PixelRect rect, CancellationToken cancellationToken)
     {
-        int bytes = Rgb565.ByteCount(rect);
+        int bytes = _format.ByteCount(rect);
         var pixels = _pixels.AsMemory(0, bytes);
-        Renderer.Surface.ExtractRgb565(rect, pixels.Span);
+        Renderer.Surface.Extract(rect, _format, pixels.Span);
 
         await _driver.BlitAsync(pixels, rect, cancellationToken).ConfigureAwait(false);
         BlitCount++;

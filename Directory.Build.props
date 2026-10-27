@@ -12,10 +12,10 @@
 
          Aquí solo cuentan MAJOR.MINOR: el parche lo pone el CI al publicar, el siguiente al último
          tag, y lo pasa con -p:Version, así que la barra de estado, el ejecutable, el instalador y la
-         release dicen el mismo número sin tocar nada. Para pasar a 1.2 o a 2.0 se cambia aquí, y la
-         siguiente release sale como 1.2.0. Lo que se compila en local lleva el sufijo dev y se ve
-         como v1.1.0-dev: no se puede confundir con una release. -->
-    <VersionPrefix>1.1.0</VersionPrefix>
+         release dicen el mismo número sin tocar nada. Para pasar a 1.3 o a 2.0 se cambia aquí, y la
+         siguiente release sale como 1.3.0. Lo que se compila en local lleva el sufijo dev y se ve
+         como v1.2.0-dev: no se puede confundir con una release. -->
+    <VersionPrefix>1.2.0</VersionPrefix>
     <VersionSuffix>dev</VersionSuffix>
     <Product>VibeScreen</Product>
     <Company>Sergio Sahuquillo</Company>

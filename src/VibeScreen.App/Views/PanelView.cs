@@ -63,6 +63,7 @@ public sealed class PanelView : UserControl, IDisposable
     private readonly Range _brightness = new(0, 100, 5);
     private readonly Control _brightnessNumber;
     private readonly TextBlock _brightnessValue;
+    private readonly TextBlock _brightnessMissing = Blocks.Help(Loc.L("panel.brightness.unsupported"));
 
     // ── tema ──────────────────────────────────────────────────────────────────
     private readonly Border _themeFlag = Blocks.Flag(Loc.L("panel.theme.none"));
@@ -368,10 +369,11 @@ public sealed class PanelView : UserControl, IDisposable
         scale.Children.Add(fifty);
         scale.Children.Add(hundred);
 
+        _brightnessMissing.IsVisible = false;
         var bright = new StackPanel
         {
             Spacing = 6,
-            Children = { brightHead, _brightness, scale },
+            Children = { brightHead, _brightness, scale, _brightnessMissing },
         };
 
         return Blocks.Card(Loc.L("panel.screen"), _screenFlag, toggleRow, bright);
@@ -682,6 +684,14 @@ public sealed class PanelView : UserControl, IDisposable
             _brightness.Show(status.Brightness);
             _brightnessValue.Text = status.Brightness.ToString(Loc.Culture);
         }
+
+        // Un panel que no regula el brillo no lo ofrece, y dice por qué. Sin panel no se sabe y se deja
+        // mover: el brillo se guarda y es el que tendrá el siguiente que se enchufe.
+        bool brightness = status.Features?.Brightness ?? true;
+        _brightness.IsEnabled = brightness;
+        _brightness.Opacity = brightness ? 1 : 0.4;
+        _brightnessNumber.Opacity = brightness ? 1 : 0.4;
+        _brightnessMissing.IsVisible = !brightness;
     }
 
     private void ShowLink(ServiceStatus status)

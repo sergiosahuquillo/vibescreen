@@ -40,5 +40,6 @@ public static class DirtyRegionSet
     }
 
     /// <summary>Bytes totales que costaría enviar el conjunto tal cual.</summary>
-    public static int TotalBytes(IEnumerable<PixelRect> rects) => rects.Sum(r => Rgb565.ByteCount(r));
+    public static int TotalBytes(IEnumerable<PixelRect> rects, PixelFormat format = PixelFormat.Rgb565LittleEndian) =>
+        rects.Sum(r => format.ByteCount(r));
 }

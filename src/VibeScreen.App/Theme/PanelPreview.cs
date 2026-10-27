@@ -144,7 +144,7 @@ public sealed class PanelPreview : Control, IDisposable
 
         using (context.PushClip(rounded))
         {
-            context.DrawImage(frame, new Rect(0, 0, frameSize.Width, frameSize.Height), box);
+            context.DrawImage(frame, new Rect(0, 0, frameSize.Width, frameSize.Height), Fit(frameSize, box));
 
             // Apagada no es negra: el tema sigue cargado y lo que cambia es que no se ve. Un velo
             // encima lo dice sin tener que borrar lo que hay debajo.
@@ -163,6 +163,24 @@ public sealed class PanelPreview : Control, IDisposable
                     (Bounds.Height - text.Height) / 2));
             }
         }
+    }
+
+    /// <summary>
+    /// Dónde va el fotograma dentro de la caja: lo más grande que quepa, centrado y sin deformarlo.
+    /// </summary>
+    /// <remarks>
+    /// La caja tiene la proporción de la Turing 3.5" apaisada, y el fotograma se estiraba hasta llenarla:
+    /// un panel en vertical, o de otro tamaño, se veía aplastado. Ahora sobra bisel por los lados y el
+    /// panel se ve como es; con 480x320 llena la caja igual que antes.
+    /// </remarks>
+    private static Rect Fit(PixelSize frame, Rect box)
+    {
+        if (frame.Width <= 0 || frame.Height <= 0) return box;
+
+        double scale = Math.Min(box.Width / frame.Width, box.Height / frame.Height);
+        double width = frame.Width * scale;
+        double height = frame.Height * scale;
+        return new Rect(box.X + ((box.Width - width) / 2), box.Y + ((box.Height - height) / 2), width, height);
     }
 
     public void Dispose()

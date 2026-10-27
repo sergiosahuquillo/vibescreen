@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using VibeScreen.Contracts;
+using VibeScreen.Core;
 using VibeScreen.Core.Layout;
 using VibeScreen.Core.Rendering;
 using VibeScreen.Core.Sensors;
@@ -224,7 +225,7 @@ public sealed class PanelHost : IAsyncDisposable
         {
             if (_panel is null || !_config.ScreenOn) return;
 
-            await _panel.Driver.SetScreenPowerAsync(false, cancellationToken).ConfigureAwait(false);
+            await PowerAsync(_panel.Driver, false, cancellationToken).ConfigureAwait(false);
             _logger.LogInformation("El sistema se suspende: panel apagado.");
         }
         finally
@@ -267,6 +268,16 @@ public sealed class PanelHost : IAsyncDisposable
                 ? bytesPerSecond / (throughput * ByteBudgetScheduler.DefaultUtilization)
                 : 0,
             ThroughputBytesPerSecond = throughput,
+            Features = panel?.Driver.Capabilities is { } capabilities
+                ? new PanelFeatures
+                {
+                    Revision = capabilities.Revision.ToString(),
+                    PixelFormat = capabilities.PixelFormat.ToString(),
+                    Brightness = capabilities.SupportsBrightness,
+                    Orientation = capabilities.SupportsOrientation,
+                    ScreenPower = capabilities.SupportsScreenPower,
+                }
+                : null,
             SensorCount = _sensorCount,
             Warnings = [.. _sensors.Warnings, .. _layoutWarnings],
             Language = Language,
@@ -464,7 +475,10 @@ public sealed class PanelHost : IAsyncDisposable
         {
             _config.Brightness = percent;
             _store.Save(_config);
-            if (_panel is not null)
+
+            // Se guarda igual aunque este panel no lo regule: es del usuario, no del panel, y el siguiente
+            // que se enchufe puede que sí.
+            if (_panel is { Driver.Capabilities.SupportsBrightness: true })
                 await _panel.Driver.SetBrightnessAsync(percent, cancellationToken).ConfigureAwait(false);
         }
         finally
@@ -482,7 +496,7 @@ public sealed class PanelHost : IAsyncDisposable
             _store.Save(_config);
             if (_panel is null) return;
 
-            await _panel.Driver.SetScreenPowerAsync(screenOn, cancellationToken).ConfigureAwait(false);
+            await PowerAsync(_panel.Driver, screenOn, cancellationToken).ConfigureAwait(false);
 
             // Al encender hay que repintarlo todo: mientras estuvo apagada no se envió nada y el panel
             // conserva lo último que recibió.
@@ -599,14 +613,16 @@ public sealed class PanelHost : IAsyncDisposable
         Volatile.Write(ref _suspended, 0);
 
         var orientation = _layout?.Display.Orientation ?? Orientation.Portrait;
-        var panel = await _connector.OpenAsync(_config.PortName, orientation, _config.ScreenOn, cancellationToken).ConfigureAwait(false);
+        var panel = await _connector.OpenAsync(_config.PortName, ConfiguredRevision(), orientation, _config.ScreenOn,
+                                               cancellationToken).ConfigureAwait(false);
 
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             _panel = panel;
             _connected = true;
-            await panel.Driver.SetBrightnessAsync(_config.Brightness, cancellationToken).ConfigureAwait(false);
+            if (panel.Driver.Capabilities.SupportsBrightness)
+                await panel.Driver.SetBrightnessAsync(_config.Brightness, cancellationToken).ConfigureAwait(false);
             await ApplyLayoutAsync(cancellationToken).ConfigureAwait(false);
 
             _logger.LogInformation("Panel {Modelo} en {Puerto}, {Ancho}x{Alto} {Orientacion}.",
@@ -673,7 +689,9 @@ public sealed class PanelHost : IAsyncDisposable
             return;
         }
 
-        if (driver.Orientation != _layout.Display.Orientation)
+        // Un panel que no gira se queda en vertical, y el runner de aquí abajo dice que el layout no
+        // encaja: es el aviso que hace falta, y no un panel a medio girar.
+        if (driver.Orientation != _layout.Display.Orientation && driver.Capabilities.SupportsOrientation)
             await driver.SetOrientationAsync(_layout.Display.Orientation, cancellationToken).ConfigureAwait(false);
 
         LayoutRunner runner;
@@ -699,6 +717,9 @@ public sealed class PanelHost : IAsyncDisposable
 
         if (!_config.ScreenOn)
         {
+            // Uno que no se apaga se deja en negro. Uno que sí ya se abrió apagado.
+            if (!driver.Capabilities.SupportsScreenPower)
+                await driver.ClearAsync(cancellationToken).ConfigureAwait(false);
             SetState(ServiceState.Connected, Notice.Of("panel.screen-off"));
             return;
         }
@@ -748,6 +769,34 @@ public sealed class PanelHost : IAsyncDisposable
         {
             _gate.Release();
         }
+    }
+
+    /// <summary>
+    /// La revisión forzada en la configuración, o null si no hay ninguna.
+    /// </summary>
+    /// <exception cref="NoticeInvalidOperationException">El nombre no es de ninguna revisión.</exception>
+    private HardwareRevision? ConfiguredRevision()
+    {
+        if (_config.Revision is not { } text) return null;
+
+        // Como fallo del panel y no como argumento malo: así el bucle lo pone en el estado y sigue en
+        // pie, en vez de tumbar el servicio por una línea mal escrita en la configuración.
+        return StrictEnum.TryParse(text, out HardwareRevision revision)
+            ? revision
+            : throw new NoticeInvalidOperationException(
+                Notice.Of("panel.revision-unknown", text, StrictEnum.Names<HardwareRevision>()));
+    }
+
+    /// <summary>
+    /// Enciende o apaga la pantalla. Si el panel no sabe apagarse, apagar es dejarlo en negro: lo más
+    /// parecido que se puede hacer, y lo que espera quien la apaga para que no se vea nada.
+    /// </summary>
+    private static async Task PowerAsync(IDisplayDriver driver, bool screenOn, CancellationToken cancellationToken)
+    {
+        if (driver.Capabilities.SupportsScreenPower)
+            await driver.SetScreenPowerAsync(screenOn, cancellationToken).ConfigureAwait(false);
+        else if (!screenOn)
+            await driver.ClearAsync(cancellationToken).ConfigureAwait(false);
     }
 
     private void SetState(ServiceState state, Notice? detail)

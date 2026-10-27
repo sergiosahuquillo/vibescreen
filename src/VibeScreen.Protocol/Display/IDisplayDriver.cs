@@ -4,6 +4,11 @@ namespace VibeScreen.Protocol.Display;
 /// Un panel, visto por la capa de render. Nadie por encima de esta interfaz debería
 /// saber de qué revisión es el hardware.
 /// </summary>
+/// <remarks>
+/// Lo que el panel no sabe hacer lo dicen sus <see cref="Capabilities"/>, y quien está por encima no
+/// se lo pide. Aun así, un driver tiene que aguantar que se lo pidan: el brillo sin regulación se
+/// apunta y no se manda, y una orientación que no admite se rechaza en vez de dejar el panel a medias.
+/// </remarks>
 public interface IDisplayDriver : IAsyncDisposable
 {
     DisplayCapabilities Capabilities { get; }
@@ -31,7 +36,10 @@ public interface IDisplayDriver : IAsyncDisposable
 
     ValueTask SetOrientationAsync(Orientation orientation, CancellationToken cancellationToken = default);
 
-    /// <summary>Vuelca un rectángulo ya codificado en RGB565 con el orden de bytes que pida el panel.</summary>
+    /// <summary>
+    /// Vuelca un rectángulo ya codificado en el <see cref="DisplayCapabilities.PixelFormat"/> del panel,
+    /// que ocupa exactamente <see cref="DisplayCapabilities.ByteCount"/> bytes.
+    /// </summary>
     ValueTask BlitAsync(ReadOnlyMemory<byte> pixels, PixelRect rect, CancellationToken cancellationToken = default);
 
     ValueTask ClearAsync(CancellationToken cancellationToken = default);

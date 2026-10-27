@@ -178,6 +178,31 @@ try
     Check(Rgb565.Pack(0, 0, 0) == 0x0000, "RGB565: negro");
     Check(Rgb565.ByteCount(new PixelRect(0, 0, 320, 480)) == 307200, "RGB565: fotograma completo son 307.200 B");
 
+    // --- PixelFormat ---
+    // El rojo puro es 0xF800: con el byte bajo delante sale 00 F8, y con el alto delante, F8 00.
+    {
+        byte[] rojo = [0x00, 0x00, 0xFF, 0xFF]; // B G R A
+        var le = new byte[2];
+        var be = new byte[2];
+        PixelFormat.Rgb565LittleEndian.FromBgra8888(rojo, 4, 1, 1, le);
+        PixelFormat.Rgb565BigEndian.FromBgra8888(rojo, 4, 1, 1, be);
+        Check(le is [0x00, 0xF8], "formato: RGB565 little-endian, el byte bajo delante");
+        Check(be is [0xF8, 0x00], "formato: RGB565 big-endian, el byte alto delante");
+
+        var full = new PixelRect(0, 0, 320, 480);
+        Check(PixelFormat.Rgb565BigEndian.ByteCount(full) == Rgb565.ByteCount(full),
+              "formato: los dos RGB565 ocupan lo mismo");
+        Check(caps.ByteCount(full) == 307200 && caps.BytesPerPixel == 2,
+              "formato: las capacidades cuentan los bytes con el suyo");
+        Check(Throws(() => new RevADisplayDriver(new RecordingTransport(), caps with { PixelFormat = PixelFormat.Rgb565BigEndian })),
+              "formato: el driver de la revisión A no acepta un formato que el panel pintaría con otros colores");
+
+        var widget = new WidgetBandwidth("cpu", new PixelRect(0, 0, 100, 24), 1);
+        var report = BandwidthBudget.Analyze([widget], caps with { PixelFormat = PixelFormat.Rgb565BigEndian });
+        Check(report.Consumers[0].Format == PixelFormat.Rgb565BigEndian && report.RequiredBytesPerSecond == 4800,
+              "formato: el medidor cuenta cada widget con el formato del panel");
+    }
+
     // --- DirtyRegionSet ---
     var kept = DirtyRegionSet.DropContained([
         new PixelRect(0, 0, 100, 100),

@@ -93,6 +93,8 @@
   "panel.port-closed": "The port isn't open.",
   "panel.resumed": "The computer is back from being off or asleep: the panel repaints in {0} s.",
   "panel.retry": "{1} Next attempt in {0} s.",
+  "panel.revision-unknown": "There is no revision “{0}”. These exist: {1}.",
+  "panel.revision-unsupported": "There is no driver for revision {0}. These exist: {1}.",
   "panel.screen-off": "Screen off.",
   "panel.timeout.flush": "The panel {0} didn't answer within {1} s when flushing its buffer.",
   "panel.timeout.open": "The panel {0} didn't answer within {1} s when opening it.",

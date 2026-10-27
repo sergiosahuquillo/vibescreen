@@ -93,6 +93,8 @@
   "panel.port-closed": "El puerto no está abierto.",
   "panel.resumed": "El equipo vuelve de estar apagado o en suspensión: el panel se repinta en {0} s.",
   "panel.retry": "{1} Siguiente intento en {0} s.",
+  "panel.revision-unknown": "La revisión «{0}» no existe. Las que hay: {1}.",
+  "panel.revision-unsupported": "No hay driver para la revisión {0}. Las que hay: {1}.",
   "panel.screen-off": "Pantalla apagada.",
   "panel.timeout.flush": "El panel {0} no ha respondido en {1} s al vaciar su búfer.",
   "panel.timeout.open": "El panel {0} no ha respondido en {1} s al abrirlo.",

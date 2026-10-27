@@ -30,6 +30,23 @@ public sealed record ServiceConfig
     public string? PortName { get; set; }
 
     /// <summary>
+    /// Revisión forzada a mano, por su nombre: <c>RevA</c>. Sin ella, la que se detecte.
+    /// </summary>
+    /// <remarks>
+    /// Para el panel que la detección no sabe reconocer, o que reconoce mal: con un puerto forzado, sin
+    /// esto se suponía la revisión A. Va como texto y no como enumerado para que un nombre que no
+    /// existe no deje el servicio sin arrancar: lo lee <see cref="PanelHost"/> al conectar, y un nombre
+    /// malo sale en el estado como cualquier otro fallo del panel.
+    /// <para>
+    /// Sin valor no se escribe. El fichero rechaza lo que no conoce, así que un <c>"revision": null</c>
+    /// escrito por esta versión dejaba a la anterior sin poder leerlo, y la anterior arrancaba con los
+    /// valores por defecto: sin tema. Así, quien no fuerza nada sigue con un fichero que leen las dos.
+    /// </para>
+    /// </remarks>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Revision { get; set; }
+
+    /// <summary>
     /// En qué idioma escriben los relojes del panel los nombres de los días y los meses.
     /// </summary>
     /// <remarks>
