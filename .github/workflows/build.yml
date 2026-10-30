@@ -16,8 +16,9 @@
 
 name: build
 
-# Lo que solo es documentación no compila ni saca release. Si el empujón trae algo más, se ejecuta
-# entero, y esos commits salen igualmente en las notas de la siguiente release.
+# Lo que solo es documentación o la web (site/, que publica pages.yml) no compila ni saca release. Si
+# el empujón trae algo más, se ejecuta entero, y esos commits salen igualmente en las notas de la
+# siguiente release.
 on:
   push:
     paths-ignore: &documentacion
@@ -25,6 +26,9 @@ on:
       - .github/README.md
       - .github/assets/**
       - docs/**
+      - site/**
+      - scripts/site/**
+      - .github/workflows/pages.yml
   pull_request:
     paths-ignore: *documentacion
 

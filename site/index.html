@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Título, descripción y Open Graph van fijos en inglés porque los buscadores y las vistas previas
+       de enlaces no ejecutan JavaScript. app.js los sustituye por los del idioma elegido. -->
+  <title>VibeScreen · Your USB smart screen as a live hardware dashboard</title>
+  <meta name="description" content="Free Windows app that turns a USB smart screen into a live hardware dashboard. Design it in a visual editor; a background service keeps it running." />
+  <link rel="canonical" href="https://sergiosahuquillo.github.io/vibescreen/" />
+  <link rel="icon" type="image/png" href="shots/logo.png" />
+  <meta name="theme-color" content="#0a0c10" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="VibeScreen" />
+  <meta property="og:title" content="VibeScreen · Your USB smart screen as a live hardware dashboard" />
+  <meta property="og:description" content="Free Windows app that turns a USB smart screen into a live hardware dashboard. Design it in a visual editor; a background service keeps it running." />
+  <meta property="og:url" content="https://sergiosahuquillo.github.io/vibescreen/" />
+  <meta property="og:image" content="https://sergiosahuquillo.github.io/vibescreen/shots/screenshot-panel.png" />
+  <meta property="og:image:width" content="1440" />
+  <meta property="og:image:height" content="900" />
+  <meta name="twitter:card" content="summary_large_image" />
+
+  <!-- Antes de pintar: tema guardado o el del sistema, para que no parpadee. -->
+  <script>
+    try {
+      var t = localStorage.getItem("vs-site-theme");
+      document.documentElement.dataset.theme =
+        t || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+    } catch (e) {
+      document.documentElement.dataset.theme = "dark";
+    }
+    // Oculta la página hasta que app.js pone los textos; si app.js no llega, se muestra igualmente.
+    document.documentElement.classList.add("i18n-pending");
+    setTimeout(function () { document.documentElement.classList.remove("i18n-pending"); }, 3000);
+  </script>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main" data-i18n="nav.skip"></a>
+
+  <noscript>
+    <p class="noscript">
+      This page needs JavaScript to show its text · Esta página necesita JavaScript para mostrar sus textos:
+      <a href="https://github.com/sergiosahuquillo/vibescreen">github.com/sergiosahuquillo/vibescreen</a>
+    </p>
+  </noscript>
+
+  <header class="topbar">
+    <div class="wrap topbar-inner">
+      <a class="brand" href="#top" data-i18n-attr="aria-label:nav.home">
+        <img src="shots/logo.png" width="28" height="28" alt="" />
+        <span>VibeScreen</span>
+      </a>
+      <nav class="nav" aria-label="Main">
+        <a href="#how" data-i18n="nav.how"></a>
+        <a href="#features" data-i18n="nav.features"></a>
+        <a href="#faq" data-i18n="nav.faq"></a>
+      </nav>
+      <div class="topbar-actions">
+        <button class="btn-icon lang" type="button" id="lang-toggle" data-i18n="nav.language" data-i18n-attr="aria-label:nav.languageLabel"></button>
+        <button class="btn-icon" type="button" id="theme-toggle" data-i18n-attr="aria-label:nav.theme;title:nav.theme">
+          <svg class="icon-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        </button>
+        <a class="btn-icon" href="https://github.com/sergiosahuquillo/vibescreen" data-i18n-attr="aria-label:nav.github;title:nav.github">
+          <svg class="icon-fill" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero" id="top">
+      <div class="wrap hero-inner">
+        <p class="eyebrow" data-i18n="hero.eyebrow"></p>
+        <h1 data-i18n-html="hero.title"></h1>
+        <p class="lead" data-i18n="hero.lead"></p>
+        <div class="cta-row">
+          <a class="btn btn-primary download" href="https://github.com/sergiosahuquillo/vibescreen/releases/latest">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
+            <span data-i18n="hero.download"></span>
+          </a>
+          <a class="btn btn-secondary" href="https://github.com/sergiosahuquillo/vibescreen">
+            <svg class="icon-fill" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+            <span data-i18n="hero.source"></span>
+          </a>
+        </div>
+        <p class="version" data-version data-i18n="hero.versionFallback"></p>
+      </div>
+      <div class="wrap">
+        <figure class="window hero-shot">
+          <img class="only-dark" src="shots/screenshot-panel.png" width="1440" height="900" data-i18n-attr="alt:hero.shotAlt" />
+          <img class="only-light" src="shots/screenshot-panel-light.png" width="1440" height="900" data-i18n-attr="alt:hero.shotAlt" />
+        </figure>
+      </div>
+    </section>
+
+    <section class="section problems" aria-labelledby="problems-title">
+      <div class="wrap">
+        <h2 id="problems-title" data-i18n="problems.title"></h2>
+        <div class="grid-3">
+          <article class="card">
+            <span class="card-icon tone-warn"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span>
+            <h3 data-i18n="problems.p1.title"></h3>
+            <p data-i18n="problems.p1.text"></p>
+          </article>
+          <article class="card">
+            <span class="card-icon tone-warn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg></span>
+            <h3 data-i18n="problems.p2.title"></h3>
+            <p data-i18n="problems.p2.text"></p>
+          </article>
+          <article class="card">
+            <span class="card-icon tone-warn"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2"/><path d="M9 9h6v6H9zM9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/></svg></span>
+            <h3 data-i18n="problems.p3.title"></h3>
+            <p data-i18n="problems.p3.text"></p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section how" id="how" aria-labelledby="how-title">
+      <div class="wrap">
+        <div class="section-head">
+          <h2 id="how-title" data-i18n="how.title"></h2>
+          <p data-i18n="how.lead"></p>
+        </div>
+        <div class="how-grid">
+          <ol class="steps">
+            <li>
+              <span class="step-n">1</span>
+              <div>
+                <h3 data-i18n="how.s1.title"></h3>
+                <p data-i18n="how.s1.text"></p>
+              </div>
+            </li>
+            <li>
+              <span class="step-n">2</span>
+              <div>
+                <h3 data-i18n="how.s2.title"></h3>
+                <p data-i18n="how.s2.text"></p>
+              </div>
+            </li>
+            <li>
+              <span class="step-n">3</span>
+              <div>
+                <h3 data-i18n="how.s3.title"></h3>
+                <p data-i18n="how.s3.text"></p>
+              </div>
+            </li>
+          </ol>
+          <!-- Un trozo del tema por defecto, packaging/themes/VibeScreen/VibeScreen.json. -->
+          <figure class="code-window">
+            <div class="code-bar"><span></span><span></span><span></span><code>Themes/VibeScreen/VibeScreen.json</code></div>
+<pre><code>{
+  <span class="k">"display"</span>: { <span class="k">"width"</span>: <span class="n">480</span>, <span class="k">"height"</span>: <span class="n">320</span> },
+  <span class="k">"widgets"</span>: [
+    { <span class="k">"type"</span>: <span class="s">"text"</span>, <span class="k">"sensor"</span>: <span class="s">"cpu/0/temperature/package"</span>,
+      <span class="k">"levels"</span>: { <span class="k">"mediumFrom"</span>: <span class="n">75</span>, <span class="k">"highFrom"</span>: <span class="n">88</span> } },
+    { <span class="k">"type"</span>: <span class="s">"bar"</span>, <span class="k">"sensor"</span>: <span class="s">"gpu/0/load/core"</span> },
+    { <span class="k">"type"</span>: <span class="s">"text"</span>, <span class="k">"sensor"</span>: <span class="s">"memory/0/data/used"</span> },
+    { <span class="k">"type"</span>: <span class="s">"clock"</span>, <span class="k">"format"</span>: <span class="s">"HH:mm"</span> }
+  ]
+}</code></pre>
+            <figcaption data-i18n="how.codeCaption"></figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section class="section features" id="features" aria-labelledby="features-title">
+      <div class="wrap">
+        <div class="section-head">
+          <h2 id="features-title" data-i18n="features.title"></h2>
+          <p data-i18n="features.lead"></p>
+        </div>
+
+        <!-- Escaparate: una función a la vez. El escenario mide siempre lo mismo y cada captura se centra
+             dentro a escala. Avanza solo hasta que el usuario elige una (app.js). -->
+        <div class="showcase" data-showcase>
+          <div class="showcase-list" role="tablist" aria-orientation="vertical" data-i18n-attr="aria-label:features.title">
+            <button class="showcase-tab is-active" type="button" role="tab" id="sc-tab-editor" aria-controls="sc-editor" aria-selected="true" tabindex="0">
+              <span class="showcase-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></span>
+              <span class="showcase-copy">
+                <span class="showcase-title" data-i18n="features.editor.title"></span>
+                <span class="showcase-text" id="sc-text-editor" data-i18n="features.editor.text"></span>
+              </span>
+              <span class="showcase-progress" aria-hidden="true"></span>
+            </button>
+            <button class="showcase-tab" type="button" role="tab" id="sc-tab-sensors" aria-controls="sc-sensors" aria-selected="false" tabindex="-1">
+              <span class="showcase-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 14.8V4a2 2 0 0 0-4 0v10.8a4 4 0 1 0 4 0z"/></svg></span>
+              <span class="showcase-copy">
+                <span class="showcase-title" data-i18n="features.sensors.title"></span>
+                <span class="showcase-text" id="sc-text-sensors" data-i18n-html="features.sensors.text"></span>
+              </span>
+              <span class="showcase-progress" aria-hidden="true"></span>
+            </button>
+            <button class="showcase-tab" type="button" role="tab" id="sc-tab-updates" aria-controls="sc-updates" aria-selected="false" tabindex="-1">
+              <span class="showcase-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 0 1-14.3 4.9M4 12a8 8 0 0 1 14.3-4.9"/><path d="M18.5 3v4.2h-4.2M5.5 21v-4.2h4.2"/></svg></span>
+              <span class="showcase-copy">
+                <span class="showcase-title" data-i18n="features.updates.title"></span>
+                <span class="showcase-text" id="sc-text-updates" data-i18n-html="features.updates.text"></span>
+              </span>
+              <span class="showcase-progress" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="showcase-stage">
+            <div class="showcase-slide shot-window is-active" role="tabpanel" id="sc-editor" aria-labelledby="sc-tab-editor" aria-describedby="sc-text-editor">
+              <img class="only-dark" src="shots/screenshot-editor.png" width="1440" height="900" loading="lazy" data-i18n-attr="alt:features.editor.alt" />
+              <img class="only-light" src="shots/screenshot-editor-light.png" width="1440" height="900" loading="lazy" data-i18n-attr="alt:features.editor.alt" />
+            </div>
+            <div class="showcase-slide shot-window" role="tabpanel" id="sc-sensors" aria-labelledby="sc-tab-sensors" aria-describedby="sc-text-sensors">
+              <img class="only-dark" src="shots/screenshot-sensors.png" width="1440" height="900" loading="lazy" data-i18n-attr="alt:features.sensors.alt" />
+              <img class="only-light" src="shots/screenshot-sensors-light.png" width="1440" height="900" loading="lazy" data-i18n-attr="alt:features.sensors.alt" />
+            </div>
+            <div class="showcase-slide shot-window" role="tabpanel" id="sc-updates" aria-labelledby="sc-tab-updates" aria-describedby="sc-text-updates">
+              <img class="only-dark" src="shots/screenshot-updates.png" width="1440" height="900" loading="lazy" data-i18n-attr="alt:features.updates.alt" />
+              <img class="only-light" src="shots/screenshot-updates-light.png" width="1440" height="900" loading="lazy" data-i18n-attr="alt:features.updates.alt" />
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-3 more">
+          <article class="card">
+            <span class="card-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20a8 8 0 1 1 8-8"/><path d="m12 12 4-4"/><circle cx="12" cy="12" r="1.5"/></svg></span>
+            <h3 data-i18n="features.more.widgets.title"></h3>
+            <p data-i18n="features.more.widgets.text"></p>
+          </article>
+          <article class="card">
+            <span class="card-icon tone-success"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></span>
+            <h3 data-i18n="features.more.levels.title"></h3>
+            <p data-i18n="features.more.levels.text"></p>
+          </article>
+          <article class="card">
+            <span class="card-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg></span>
+            <h3 data-i18n="features.more.images.title"></h3>
+            <p data-i18n="features.more.images.text"></p>
+          </article>
+          <article class="card">
+            <span class="card-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M12 11v5M9.5 13.5 12 16l2.5-2.5"/></svg></span>
+            <h3 data-i18n="features.more.themes.title"></h3>
+            <p data-i18n="features.more.themes.text"></p>
+          </article>
+          <article class="card">
+            <span class="card-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9"/><path d="M12 12 18 6"/><path d="M12 7v1M7 12h1M16 12h1"/></svg></span>
+            <h3 data-i18n="features.more.bandwidth.title"></h3>
+            <p data-i18n="features.more.bandwidth.text"></p>
+          </article>
+          <article class="card">
+            <span class="card-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4"/><circle cx="12" cy="12" r="3"/></svg></span>
+            <h3 data-i18n="features.more.background.title"></h3>
+            <p data-i18n="features.more.background.text"></p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section faq" id="faq" aria-labelledby="faq-title">
+      <div class="wrap wrap-narrow">
+        <h2 id="faq-title" data-i18n="faq.title"></h2>
+        <details><summary data-i18n="faq.q1.q"></summary><p data-i18n-html="faq.q1.a"></p></details>
+        <details><summary data-i18n="faq.q2.q"></summary><p data-i18n-html="faq.q2.a"></p></details>
+        <details><summary data-i18n="faq.q3.q"></summary><p data-i18n-html="faq.q3.a"></p></details>
+        <details><summary data-i18n="faq.q4.q"></summary><p data-i18n-html="faq.q4.a"></p></details>
+        <details><summary data-i18n="faq.q5.q"></summary><p data-i18n-html="faq.q5.a"></p></details>
+        <details><summary data-i18n="faq.q6.q"></summary><p data-i18n-html="faq.q6.a"></p></details>
+        <details><summary data-i18n="faq.q7.q"></summary><p data-i18n-html="faq.q7.a"></p></details>
+      </div>
+    </section>
+
+    <section class="section final" aria-labelledby="final-title">
+      <div class="wrap final-inner">
+        <img src="shots/logo.png" width="64" height="64" alt="" />
+        <h2 id="final-title" data-i18n="cta.title"></h2>
+        <p data-i18n="cta.text"></p>
+        <a class="btn btn-primary download" href="https://github.com/sergiosahuquillo/vibescreen/releases/latest">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
+          <span data-i18n="hero.download"></span>
+        </a>
+        <p class="version" data-version data-i18n="hero.versionFallback"></p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer-inner">
+      <p><strong>VibeScreen</strong> · <span data-i18n-html="footer.license"></span></p>
+      <nav aria-label="Links">
+        <a href="https://github.com/sergiosahuquillo/vibescreen/releases" data-i18n="footer.releases"></a>
+        <a href="https://github.com/sergiosahuquillo/vibescreen/issues" data-i18n="footer.issues"></a>
+        <a href="https://github.com/sergiosahuquillo/vibescreen" data-i18n="nav.github"></a>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>
