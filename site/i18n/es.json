@@ -1,0 +1,144 @@
+{
+  "meta": {
+    "title": "VibeScreen · Tu pantalla USB, un panel de hardware en vivo",
+    "description": "App gratuita para Windows que convierte una pantalla USB en un panel de hardware en vivo. Se diseña en un editor visual y un servicio la mantiene en marcha."
+  },
+  "nav": {
+    "skip": "Ir al contenido",
+    "features": "Funciones",
+    "how": "Cómo funciona",
+    "faq": "Preguntas",
+    "github": "GitHub",
+    "language": "English",
+    "languageLabel": "Switch to English",
+    "theme": "Cambiar entre modo claro y oscuro",
+    "home": "VibeScreen, inicio"
+  },
+  "hero": {
+    "eyebrow": "Gratis y de código abierto · Windows 10 y 11",
+    "title": "Tu pantalla USB, convertida en un <span class=\"accent\">panel de hardware en vivo</span>",
+    "lead": "Diséñala en un editor visual, configúrala una vez y olvídate. Un pequeño servicio de Windows mantiene en pantalla la CPU, la GPU, la memoria y los ventiladores, con la app cerrada.",
+    "download": "Descargar para Windows",
+    "version": "Versión {{version}} · {{size}} MB",
+    "versionFallback": "Última versión en GitHub",
+    "source": "Ver en GitHub",
+    "shotAlt": "VibeScreen con el panel en vivo, el estado del servicio y el uso del enlace"
+  },
+  "problems": {
+    "title": "¿Te suena?",
+    "p1": {
+      "title": "La app tiene que estar abierta",
+      "text": "Cierras el programa de la pantalla y la pantalla se congela. Así que se queda en la barra de tareas todo el día, solo para enseñar una temperatura."
+    },
+    "p2": {
+      "title": "Tirones por un cable lento",
+      "text": "Estas pantallas mueven unos 256 KB/s. Si se repinta todo cada segundo, las cifras van con retraso, saltan o dejan trozos del fotograma anterior."
+    },
+    "p3": {
+      "title": "Temas atados a un PC",
+      "text": "Un tema hecho en un equipo Intel sale en blanco en uno AMD, porque cada sensor se llama distinto en cada chip."
+    }
+  },
+  "how": {
+    "title": "Cómo funciona",
+    "lead": "Dos piezas: un servicio que mueve la pantalla y una ventana para configurarla. Una vez configurada, solo hace falta la primera.",
+    "s1": {
+      "title": "Instálala",
+      "text": "Un solo instalador pone la app, el servicio y el controlador de sensores. Nada más que instalar: .NET va incluido."
+    },
+    "s2": {
+      "title": "Conecta la pantalla",
+      "text": "Enseña el tema por defecto al momento, sin abrir ninguna ventana. Si la desconectas, se vuelve a conectar sola cuando vuelve."
+    },
+    "s3": {
+      "title": "Hazla tuya y cierra la ventana",
+      "text": "Diseña tu propio tema en el editor o importa uno que te pasen. El servicio lo mantiene en marcha desde que arranca Windows."
+    },
+    "codeCaption": "Un tema es un fichero JSON. Los sensores tienen nombres neutros, así que el mismo fichero vale en AMD, Intel o NVIDIA."
+  },
+  "features": {
+    "title": "Todo lo que necesitas, nada que estorbe",
+    "lead": "El editor, los sensores y las actualizaciones, en una ventana que no tiene por qué quedarse abierta.",
+    "editor": {
+      "title": "Un editor de temas visual",
+      "text": "Arrastra y redimensiona widgets sobre una rejilla de píxeles con imán y zoom, y ajusta cada propiedad desde un panel lateral. La vista previa la pinta el mismo renderizador que alimenta tu pantalla, píxel a píxel.",
+      "alt": "El editor de temas con el tema por defecto abierto"
+    },
+    "sensors": {
+      "title": "Cientos de sensores",
+      "text": "CPU, GPU, memoria, discos, red, placa base y ventiladores, cada uno con un nombre neutro como <code>gpu/0/load/core</code> y su valor en vivo. Fíltralos y manda uno directo al editor.",
+      "alt": "El explorador de sensores con los sensores del equipo"
+    },
+    "updates": {
+      "title": "Siempre al día",
+      "text": "Ajustes → Actualizaciones busca versiones nuevas en GitHub: <strong>avisar</strong>, <strong>a mano</strong> o <strong>no actualizar</strong>. Cada descarga se verifica antes de instalarse, y tus temas y ajustes se quedan.",
+      "alt": "La sección Actualizaciones de Ajustes, con la versión instalada y el modo de actualización"
+    },
+    "more": {
+      "widgets": {
+        "title": "Seis tipos de widget",
+        "text": "Textos y valores, barras, indicadores y anillos, gráficas que se desplazan, relojes con formatos de fecha e imágenes. Duplícalos, cópialos y pégalos, incluso entre temas."
+      },
+      "levels": {
+        "title": "Color según el valor",
+        "text": "Verde, ámbar y rojo, o los tres colores que quieras, con tus propios umbrales. Ves que la CPU va caliente sin leer la cifra."
+      },
+      "images": {
+        "title": "Imágenes y GIF animados",
+        "text": "Usa una imagen de fondo o como widget. Los GIF van a su propia velocidad, y una imagen fija no cuesta nada una vez enviada."
+      },
+      "themes": {
+        "title": "Temas que viajan",
+        "text": "Cada tema es una carpeta con sus imágenes dentro. Cópiala a otro PC, compártela o importa una. O deja que elija un tema al azar en cada arranque."
+      },
+      "bandwidth": {
+        "title": "Pensado para el cable",
+        "text": "Solo se repinta lo que cambia, y cada fotograma cabe en el presupuesto del enlace. El editor te dice de antemano cuánto va a necesitar un tema."
+      },
+      "background": {
+        "title": "Hecha para dejarla sola",
+        "text": "Arranca con Windows, vive en la bandeja y recuerda el brillo y si la pantalla está encendida. Modo oscuro y claro, ocho colores de realce, en español e inglés."
+      }
+    }
+  },
+  "faq": {
+    "title": "Preguntas frecuentes",
+    "q1": {
+      "q": "¿Qué pantallas admite?",
+      "a": "La Turing Smart Screen de 3,5\" (revisión A, USB ID <code>1A86:5722</code>), en vertical y en horizontal. Los modelos UsbPCMonitor de 5\" y 7\" de la misma revisión se reconocen con su tamaño real, pero aún no se han probado con el aparato delante. Las revisiones B, C y D están previstas. ¿Tienes otro modelo? <a href=\"https://github.com/sergiosahuquillo/vibescreen/issues\">Abre un issue</a> con su nombre y su revisión."
+    },
+    "q2": {
+      "q": "¿Qué es PawnIO y por qué lo añade el instalador?",
+      "a": "Leer la temperatura de la CPU y los sensores de la placa base necesita acceso al hardware a bajo nivel, y Windows solo lo permite a través de un controlador. <a href=\"https://pawnio.eu/\">PawnIO</a> es ese controlador: de código abierto, firmado por Microsoft y compartido con otras herramientas de monitorización como LibreHardwareMonitor y HWiNFO. El instalador te avisa antes de añadirlo y se lo salta si ya está. Desinstalar VibeScreen deja PawnIO en su sitio, porque puede que lo usen otros programas."
+    },
+    "q3": {
+      "q": "¿La app tiene que estar abierta?",
+      "a": "No. La pantalla la mueve el servicio de VibeScreen, que arranca con Windows. La ventana solo sirve para configurar, y no arranca con Windows a propósito: con el tema puesto, no hay motivo para tenerla abierta."
+    },
+    "q4": {
+      "q": "¿Por qué pide permisos de administrador?",
+      "a": "Solo los pide el instalador, para poner el servicio y el controlador de sensores, y cada actualización que se instala desde la ventana, porque ejecuta ese mismo instalador. La ventana en sí funciona como un usuario normal."
+    },
+    "q5": {
+      "q": "Windows dice que ha protegido mi PC. ¿Es seguro?",
+      "a": "El instalador aún no está firmado, así que SmartScreen avisa la primera vez que lo abres: pulsa <strong>Más información</strong> → <strong>Ejecutar de todas formas</strong>. Todo el código está en GitHub, y cada instalador lo compila GitHub Actions a partir de él."
+    },
+    "q6": {
+      "q": "Algunos widgets enseñan <code>--</code>. ¿Por qué?",
+      "a": "Ese sensor no existe en tu PC. Por ejemplo, un widget de GPU en un equipo sin tarjeta gráfica dedicada. Elígele otro sensor en el editor."
+    },
+    "q7": {
+      "q": "¿Funciona en Linux?",
+      "a": "Todavía no: por ahora los sensores solo se leen en Windows. Linux está previsto."
+    }
+  },
+  "cta": {
+    "title": "Dale algo que enseñar a tu pantalla",
+    "text": "Gratis, de código abierto y en marcha en un minuto."
+  },
+  "footer": {
+    "license": "Software libre bajo la <a href=\"https://github.com/sergiosahuquillo/vibescreen/blob/main/LICENSE\">GPL-3.0</a>.",
+    "releases": "Versiones",
+    "issues": "Informar de un problema"
+  }
+}

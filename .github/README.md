@@ -14,6 +14,7 @@ Design it in a visual editor, set it once, and forget about it: it keeps running
 ![Windows 10 | 11](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6?style=flat-square)
 
 [![Download for Windows](https://img.shields.io/badge/Download_for_Windows-FF6F61?style=for-the-badge)](https://github.com/sergiosahuquillo/vibescreen/releases/latest)
+[![Website](https://img.shields.io/badge/Website-12151B?style=for-the-badge)](https://sergiosahuquillo.github.io/vibescreen/)
 
 <img src="assets/screenshot-panel.png" alt="VibeScreen showing the live panel, the service status and the link usage" />
 
@@ -64,7 +65,7 @@ live value. Filter them by device or by text, and send one straight to the edito
 - Lives in the system tray when you close the window.
 - Dark and light modes (or follow Windows), eight accent colors, in English and Spanish.
 
-<img src="assets/screenshot-panel-light.png" alt="VibeScreen in light mode" />
+<img src="assets/screenshot-dark-light.png" alt="VibeScreen, half in dark mode and half in light mode" />
 
 ## Supported screens
 

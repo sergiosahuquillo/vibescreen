@@ -13,8 +13,8 @@ the panel, and a desktop app lets you design the themes visually.
 
 This is the **developer README**: how the repository is laid out, how to build, test and release it.
 If you only want to use the app, the project page has screenshots, features and install instructions:
-[.github/README.md](.github/README.md), or the
-[latest release](https://github.com/sergiosahuquillo/vibescreen/releases/latest).
+[.github/README.md](.github/README.md), the [website](https://sergiosahuquillo.github.io/vibescreen/),
+or the [latest release](https://github.com/sergiosahuquillo/vibescreen/releases/latest).
 
 **Status:** stable, version 1.0. Windows 10/11 x64 only for now. The sensor backend is Windows-only, and
 the Linux one is planned. The supported screen is the Turing Smart Screen 3.5" (revision A,
@@ -159,7 +159,8 @@ passes it to both executables and the installer, so the status bar, the executab
 the tag and the release all agree. To move to 1.1 or 2.0, change `VersionPrefix`; the next release
 comes out as 1.1.0. Local builds carry a `-dev` suffix and other branches `-dev.<run>`, so they can't be
 mistaken for a release. A commit with `[skip ci]` in its message doesn't produce one, and neither does
-a push that only touches documentation (both READMEs, `.github/assets/` and `docs/`).
+a push that only touches documentation (both READMEs, `.github/assets/` and `docs/`) or the
+[website](#website).
 
 On other branches and in pull requests the installer is still built and left as a workflow artifact, so
 you can try it before merging. To build it locally you need Inno Setup 7
@@ -172,6 +173,27 @@ you can try it before merging. To build it locally you need Inno Setup 7
 Everything lands in `artifacts/`: the icon, both publishes, PawnIO and the installer. PawnIO is
 downloaded and checked against a pinned SHA-256, never stored in the repository. Code signing is
 still to do: the workflow has the spot marked for it.
+
+## Website
+
+[sergiosahuquillo.github.io/vibescreen](https://sergiosahuquillo.github.io/vibescreen/) is plain HTML,
+CSS and JavaScript in `site/`, with no build step. [`pages.yml`](.github/workflows/pages.yml) publishes
+it on every push to `main` that touches it; nothing is duplicated: the screenshots are copied from
+`.github/assets/` to `shots/` and the window's fonts from `src/VibeScreen.App/Assets/Fonts` to `fonts/`
+when publishing. Its colors are the window's, from `design/app.css`.
+
+- **Texts** live in `site/i18n/en.json` and `site/i18n/es.json`. The HTML only names the key
+  (`data-i18n`, `data-i18n-html` for texts with markup, `data-i18n-attr` for attributes) and `app.js`
+  fills it in. The language comes from `?lang=`, the visitor's last choice or the browser.
+- **Download button**: it points to the latest release and, through the GitHub API, straight to its
+  installer with the version and size, so a new release shows up on its own.
+- **Locally**: `node scripts/site/serve.mjs` serves it at http://localhost:4321 laid out exactly as
+  published.
+- **Check**: `node scripts/site/check-i18n.mjs` fails if a key is missing in one language, the
+  `{{placeholders}}` differ, or a key is used without text or defined without use. CI runs it before
+  publishing.
+
+Changes to the website don't produce a release of the app.
 
 ## Credits
 

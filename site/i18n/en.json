@@ -1,0 +1,144 @@
+{
+  "meta": {
+    "title": "VibeScreen · Your USB smart screen as a live hardware dashboard",
+    "description": "Free Windows app that turns a USB smart screen into a live hardware dashboard. Design it in a visual editor; a background service keeps it running."
+  },
+  "nav": {
+    "skip": "Skip to content",
+    "features": "Features",
+    "how": "How it works",
+    "faq": "FAQ",
+    "github": "GitHub",
+    "language": "Español",
+    "languageLabel": "Cambiar a español",
+    "theme": "Switch between light and dark mode",
+    "home": "VibeScreen, home"
+  },
+  "hero": {
+    "eyebrow": "Free and open source · Windows 10 and 11",
+    "title": "Your USB smart screen, turned into a <span class=\"accent\">live hardware dashboard</span>",
+    "lead": "Design it in a visual editor, set it once and forget about it. A small Windows service keeps your CPU, GPU, memory and fans on the screen, with the app closed.",
+    "download": "Download for Windows",
+    "version": "Version {{version}} · {{size}} MB",
+    "versionFallback": "Latest release on GitHub",
+    "source": "View on GitHub",
+    "shotAlt": "VibeScreen showing the live panel, the service status and the link usage"
+  },
+  "problems": {
+    "title": "Sound familiar?",
+    "p1": {
+      "title": "The app has to stay open",
+      "text": "Close the screen's software and the screen freezes. So it sits in your taskbar all day, just to show a temperature."
+    },
+    "p2": {
+      "title": "Stutter on a slow cable",
+      "text": "These screens move about 256 KB/s. Redraw everything every second and the numbers lag, jump or leave bits of the last frame behind."
+    },
+    "p3": {
+      "title": "Themes tied to one PC",
+      "text": "A theme made on an Intel machine shows blanks on an AMD one, because every sensor has a different name on every chip."
+    }
+  },
+  "how": {
+    "title": "How it works",
+    "lead": "Two pieces: a service that drives the screen and a window to set it up. Once it's set, you only need the first one.",
+    "s1": {
+      "title": "Install it",
+      "text": "One installer sets up the app, the service and the sensor driver. Nothing else to install: .NET comes included."
+    },
+    "s2": {
+      "title": "Plug in your screen",
+      "text": "It shows the default theme right away, with no window to open. Unplug it and it reconnects by itself when it comes back."
+    },
+    "s3": {
+      "title": "Make it yours, then close the window",
+      "text": "Design your own theme in the editor or import one someone sent you. The service keeps it running from the moment Windows starts."
+    },
+    "codeCaption": "A theme is a JSON file. Sensors have neutral names, so the same file works on AMD, Intel or NVIDIA."
+  },
+  "features": {
+    "title": "Everything you need, nothing that gets in the way",
+    "lead": "The editor, the sensors and the updates, in one window that doesn't have to stay open.",
+    "editor": {
+      "title": "A visual theme editor",
+      "text": "Drag and resize widgets on a pixel grid with snap and zoom, and set every property from a side panel. The preview is drawn by the same renderer that feeds your screen, pixel for pixel.",
+      "alt": "The theme editor with the default theme open"
+    },
+    "sensors": {
+      "title": "Hundreds of sensors",
+      "text": "CPU, GPU, memory, storage, network, motherboard and fans, each with a neutral name such as <code>gpu/0/load/core</code> and its live value. Filter them and send one straight to the editor.",
+      "alt": "The sensor explorer listing the machine's sensors"
+    },
+    "updates": {
+      "title": "Always up to date",
+      "text": "Settings → Updates checks GitHub for new versions: <strong>notify me</strong>, <strong>manually</strong> or <strong>don't update</strong>. Every download is verified before it installs, and your themes and settings stay.",
+      "alt": "The Updates section in Settings, showing the installed version and the update mode"
+    },
+    "more": {
+      "widgets": {
+        "title": "Six kinds of widget",
+        "text": "Text and values, bars, gauges and rings, scrolling charts, clocks with date formats, and images. Duplicate, copy and paste them, even between themes."
+      },
+      "levels": {
+        "title": "Color by value",
+        "text": "Green, amber and red, or any three colors, with your own thresholds. You see a hot CPU without reading the number."
+      },
+      "images": {
+        "title": "Images and animated GIFs",
+        "text": "Use a picture as the background or as a widget. GIFs play at their own speed, and a still image costs nothing once it's sent."
+      },
+      "themes": {
+        "title": "Themes that travel",
+        "text": "Each theme is a folder with its own images inside. Copy it to another PC, share it, or import one. Or let it pick a random theme on every start."
+      },
+      "bandwidth": {
+        "title": "Planned for the cable",
+        "text": "Only what changed is redrawn, and every frame fits the link's budget. The editor tells you in advance how much of it a theme will need."
+      },
+      "background": {
+        "title": "Built to be left alone",
+        "text": "Starts with Windows, lives in the tray, remembers brightness and screen on or off. Dark and light modes, eight accent colors, English and Spanish."
+      }
+    }
+  },
+  "faq": {
+    "title": "Frequently asked questions",
+    "q1": {
+      "q": "Which screens does it support?",
+      "a": "The Turing Smart Screen 3.5\" (revision A, USB ID <code>1A86:5722</code>), in portrait and landscape. The 5\" and 7\" UsbPCMonitor models of the same revision are recognized with their real size, but haven't been tried on real hardware yet. Revisions B, C and D are planned. Got a different model? <a href=\"https://github.com/sergiosahuquillo/vibescreen/issues\">Open an issue</a> with its name and revision."
+    },
+    "q2": {
+      "q": "What is PawnIO and why does the installer add it?",
+      "a": "Reading the CPU temperature and the motherboard sensors needs low-level hardware access, and Windows only allows that through a driver. <a href=\"https://pawnio.eu/\">PawnIO</a> is that driver: open source, signed by Microsoft, and shared with other monitoring tools such as LibreHardwareMonitor and HWiNFO. The installer tells you before adding it, and skips it if it's already there. Uninstalling VibeScreen leaves PawnIO in place, because other programs may be using it."
+    },
+    "q3": {
+      "q": "Does the app need to stay open?",
+      "a": "No. The screen is driven by the VibeScreen service, which starts with Windows. The window is only for setting things up, and it doesn't start with Windows on purpose: once your theme is set, there's no reason to keep it running."
+    },
+    "q4": {
+      "q": "Why does it ask for administrator rights?",
+      "a": "Only the installer does, to set up the service and the sensor driver, and so does every update installed from the window, because it runs that same installer. The window itself runs as a normal user."
+    },
+    "q5": {
+      "q": "Windows says it protected my PC. Is it safe?",
+      "a": "The installer isn't code-signed yet, so SmartScreen warns the first time you run it: click <strong>More info</strong> → <strong>Run anyway</strong>. The code is all on GitHub, and every installer is built from it by GitHub Actions."
+    },
+    "q6": {
+      "q": "Some widgets show <code>--</code>. Why?",
+      "a": "That sensor doesn't exist on your PC. For example, a GPU widget on a machine without a dedicated graphics card. Pick another sensor for it in the editor."
+    },
+    "q7": {
+      "q": "Does it run on Linux?",
+      "a": "Not yet: the sensor backend is Windows-only for now. Linux support is planned."
+    }
+  },
+  "cta": {
+    "title": "Give your screen something to show",
+    "text": "Free, open source and running in a minute."
+  },
+  "footer": {
+    "license": "Free software under the <a href=\"https://github.com/sergiosahuquillo/vibescreen/blob/main/LICENSE\">GPL-3.0</a>.",
+    "releases": "Releases",
+    "issues": "Report a problem"
+  }
+}
