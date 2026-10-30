@@ -204,16 +204,7 @@ public sealed class PanelPreview : Control, IDisposable
             CornerRadius = new CornerRadius(10),
             BorderBrush = Palette.LineStrongBrush,
             BorderThickness = new Thickness(1),
-            Background = new LinearGradientBrush
-            {
-                StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
-                EndPoint = new RelativePoint(0, 1, RelativeUnit.Relative),
-                GradientStops =
-                {
-                    new GradientStop(Palette.Bezel1Brush.Color, 0),
-                    new GradientStop(Palette.Bezel2Brush.Color, 1),
-                },
-            },
+            Background = Palette.BezelBrush,
             Child = preview,
         };
     }

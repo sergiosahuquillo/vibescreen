@@ -155,6 +155,19 @@ public static class Palette
     /// <summary>El otro extremo del bisel: el marco es un degradado entre los dos.</summary>
     public static readonly SolidColorBrush Bezel2Brush = new(Colors.Transparent);
 
+    /// <summary>El degradado del marco, de <see cref="Bezel1Brush"/> arriba a <see cref="Bezel2Brush"/> abajo.</summary>
+    /// <remarks>
+    /// Uno compartido y repintado en <see cref="Apply(AppTheme, string?)"/>, como los demás pinceles. Cada marco
+    /// hacía el suyo copiando los dos colores al crearse, y al cambiar de modo con la ventana abierta
+    /// se quedaba con el bisel del modo anterior: gris claro alrededor de un panel en modo oscuro.
+    /// </remarks>
+    public static readonly LinearGradientBrush BezelBrush = new()
+    {
+        StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
+        EndPoint = new RelativePoint(0, 1, RelativeUnit.Relative),
+        GradientStops = { new GradientStop(Colors.Transparent, 0), new GradientStop(Colors.Transparent, 1) },
+    };
+
     /// <summary>El pulgar de un interruptor apagado.</summary>
     public static readonly SolidColorBrush ThumbOffBrush = new(Colors.Transparent);
 
@@ -300,6 +313,8 @@ public static class Palette
         WashBrush.Color = tokens.Wash;
         Bezel1Brush.Color = tokens.Bezel1;
         Bezel2Brush.Color = tokens.Bezel2;
+        BezelBrush.GradientStops[0].Color = tokens.Bezel1;
+        BezelBrush.GradientStops[1].Color = tokens.Bezel2;
         ThumbOffBrush.Color = tokens.ThumbOff;
         ThumbRingBrush.Color = tokens.ThumbRing;
         ScrollBrush.Color = tokens.Scroll;
